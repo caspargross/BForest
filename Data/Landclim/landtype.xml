@@ -26,7 +26,7 @@
     	<fireProbabilityCoefficient>20</fireProbabilityCoefficient>
     	<lastWindthrowDisturbance>400</lastWindthrowDisturbance>
     	<lastFireDisturbance>400</lastFireDisturbance>
-    	<browsingIntensity>0.5</browsingIntensity>
+    	<browsingIntensity>0</browsingIntensity>
     	<potentialSaplingDensity>0.5</potentialSaplingDensity>    	
     	<defaultEstablishmentCoefficient>0.9</defaultEstablishmentCoefficient>
     	<defaultVegetativePropagules>0</defaultVegetativePropagules>
