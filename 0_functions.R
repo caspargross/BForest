@@ -63,4 +63,11 @@ make_3d_plot <- function (raster, w=matrix(1/9,nrow=3,ncol=3)) {
   plot3D(raster)
 }
 
+plot_succession <- function(elevationBiomassOut, species, elevation, elev_var=20, lty=1, cols= rainbow(length(species)), plotlegend=TRUE){
+  a <-elevationBiomassOut$elevation==c( 800 - 0:elev_var, elevation + 0:elev_var)
+  matplot(elevationBiomassOut$decade[a], elevationBiomassOut[a,colnames(elevationBiomassOut) %in% species], type="l", lty=lty, col=cols, xlab="Decade", ylab="Biomass (t/ha)")
+  if(plotlegend) legend("topright", legend=species, lty=lty, col=cols, bg="white")
+}
 
+c(800 + 0:ele, 800 - 1:20)
+a <-bio_out_3br$elevation==801
