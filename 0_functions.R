@@ -76,3 +76,22 @@ plot_succession <- function(elevationBiomassOut, species, elevation, elev_var=20
 }
 
 
+
+rev_ycoords <-function(out, aui_rev=aui, res_rev=c(25,25)) 
+{
+  yc <- out$ycoord
+  foo <- function (x) (aui_rev@ymax+res_rev[2])-(which(unique(yc)==x)*res_rev[2])
+  out$ycoord <- sapply(yc, foo)
+  out <- out[order(-out$ycoord, out$xcoord),]
+  out
+}
+
+out2raster <- function (dat, var="elevation")
+{
+  dat$biomass_cohort <- dat$biomass * dat$stems
+  ex <- extent(min(dat$xcoord), max(dat$xcoord), min(dat$ycoord), max(dat$ycoord)) 
+  r <- raster (ex=ex, res=c(25,25), crs="+init=epsg:31467")
+  r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[,var])
+  r
+}
+

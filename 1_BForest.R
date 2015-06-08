@@ -10,7 +10,7 @@ library(devtools)
 
 #install_github("KDolos/LandClimTools")
 library(LandClimTools)
-
+ 
 
 #Load Digital Elevation Model for National Park Nördlicher SW
 dem_utm <- raster ("Data/dem/n48_e008_1arc_v3.bil")
