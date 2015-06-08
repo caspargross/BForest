@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<species>
+  <set>
+    <name>abiealba</name>
+    <maxAge>700</maxAge>
+    <ageAtMaturity>70</ageAtMaturity>
+    <shadeTolerance>5</shadeTolerance>
+    <fireTolerance>3</fireTolerance>
+    <effectiveDispersalDistance>50</effectiveDispersalDistance>
+    <maxDispersalDistance>160</maxDispersalDistance>
+    <vegetativeReproductionProbability>0</vegetativeReproductionProbability>
+    <maxAgeForVegetativeReproduction>0</maxAgeForVegetativeReproduction>
+    <Rmax>0.08</Rmax>
+    <Kmax>17.6</Kmax>
+    <maxHeight>60</maxHeight>
+    <leafHabit>EVERGREEN</leafHabit>
+    <foliageType>5</foliageType>
+    <minDegreeDays>641</minDegreeDays>
+    <minTemperature>-6</minTemperature>
+    <droughtTolerance>0.28</droughtTolerance>
+    <nitrogenTolerance>3</nitrogenTolerance>
+    <browsingTolerance>5</browsingTolerance>
+    <growthmodel>LOGISTIC</growthmodel>
+  </set>
+</species>

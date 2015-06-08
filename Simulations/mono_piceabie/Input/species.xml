@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<species>
+  <set>
+    <name>piceabie</name>
+    <maxAge>700</maxAge>
+    <ageAtMaturity>50</ageAtMaturity>
+    <shadeTolerance>3</shadeTolerance>
+    <fireTolerance>3</fireTolerance>
+    <effectiveDispersalDistance>70</effectiveDispersalDistance>
+    <maxDispersalDistance>250</maxDispersalDistance>
+    <vegetativeReproductionProbability>0</vegetativeReproductionProbability>
+    <maxAgeForVegetativeReproduction>0</maxAgeForVegetativeReproduction>
+    <Rmax>0.08</Rmax>
+    <Kmax>15.2</Kmax>
+    <maxHeight>58</maxHeight>
+    <leafHabit>EVERGREEN</leafHabit>
+    <foliageType>5</foliageType>
+    <minDegreeDays>385</minDegreeDays>
+    <minTemperature>-99</minTemperature>
+    <droughtTolerance>0.2</droughtTolerance>
+    <nitrogenTolerance>2</nitrogenTolerance>
+    <browsingTolerance>2</browsingTolerance>
+    <growthmodel>LOGISTIC</growthmodel>
+  </set>
+</species>

@@ -4,6 +4,7 @@
 
 run_landclim_model<-function(sim_name, ctl_file="ctl_bforest.xml", lcpath="/Data/Landclim/LandClim"){
   oldwd <- getwd()
+  dir.create(paste("Simulations/",sim_name,"/Output",sep=""))
   dir.create(paste("Simulations/",sim_name,"/Output",sep=""))   ### Erstellt das Verzeichnis, in das die Ergebnisse geschrieben werden. Es muss so heißen, wie im LandClim-Controll-File angegeben.
   setwd(paste("Simulations/",sim_name,"/Input",sep="")) ### Damit der "system"-Befehl funktioniert, muss in R das working directory der Ordner "Input" der entsprechenden Simulation sein.
   print(getwd())
@@ -46,11 +47,16 @@ move_Output <- function(newname="Output1"){
   file.rename(paste(newname, "/", fi, sep=""),paste(newname, "/", fi_new, sep=""))
 }
 
-raster_from_output <- function (simname, decade, spec, variable, res=c(25,25), crs="+init=epsg:31467") {
+raster_from_output <- function (simname, decade=NA , spec , variable, res=c(25,25), crs="+init=epsg:31467") {
   require(raster)
-  dat <- read.csv(paste("Simulations/",simname,"/Output/fullOut_",decade,".csv", sep=""), strip.white=T)
+  
+  ifelse (is.na(decade) ,
+    dat <- simname,
+    dat <- read.csv(paste("Simulations/",simname,"/Output/fullOut_",decade,".csv", sep=""), strip.white=T)
+  )
   dat$biomass_cohort <- dat$biomass * dat$stems
   dat<-subset(dat, dat$species==spec, select =  c("xcoord","ycoord", variable))
+  #dat$ycoord<-rev(dat$ycoord)
   raster <- rasterFromXYZ(dat, res=res, crs=crs)
   raster
 }
@@ -69,5 +75,4 @@ plot_succession <- function(elevationBiomassOut, species, elevation, elev_var=20
   if(plotlegend) legend("topright", legend=species, lty=lty, col=cols, bg="white")
 }
 
-c(800 + 0:ele, 800 - 1:20)
-a <-bio_out_3br$elevation==801
+

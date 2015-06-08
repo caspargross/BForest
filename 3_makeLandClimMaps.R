@@ -29,11 +29,11 @@ nitro[] <- 1  ### Make "City" Landtype.
 ### Create raster-stack
 maps <- stack(dem, slope, aspect, soil, landtype, nitro)
 names(maps) <- c("dem", "slope", "aspect", "soil", "landtype", "nitro")
-plot(maps)
+plot(maps, main="Original Maps")
 
 ### Resample LancClimMaps
-maps25 <- resample_LandClim_maps(LandClimRasterStack=maps)
-#plot(maps25)
+maps25 <- resample_LandClim_maps(maps)
+plot(maps25>0, main="Resampled Maps (25)")
 maps25
 }
 

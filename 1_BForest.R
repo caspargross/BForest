@@ -4,7 +4,7 @@
 ##           Black Forest NP               ##
 ##            Caspar Gross                 ##
 #############################################
-
+setwd("/home/caspar/Bachelor_Thesis/BForest/")
 library(raster)
 library(devtools)
 
@@ -27,13 +27,12 @@ plot(dem_gk)
 points(3446740, 5382515) #Riesenköpfle GK
 
 writeRaster(dem_gk, file="Data/dem/dem_overview.grd")
-
+dem_gk <- raster("Data/dem/dem_overview.grd")
 
 #define Extent area of interest
 aui <- extent( c(3446000, 3447500, 5381500, 5383500))
 plot (dem_gk)
 plot(aui, add=T)
-dem_aui <- crop(dem_gk, aui)
 
 source("3_makeLandClimMaps.R")
 maps25<-create_LandClim_Maps(dem_gk)
@@ -54,6 +53,10 @@ plot_forest(xytree, c("abiealba","fagusilv"), colours)
 #### 3 Species, but without browsing.
 create_inputdir("3simple", species=c("abiealba", "fagusilv", "piceabie"), ex=aui)
 run_landclim_model("3simple")
+
+ele3simple<-read.csv("Simulations/3simple/Output/elevation_biomass_out.csv")
+plot_elevation_gradient(ele3simple, species=c("abiealba", "piceabie","fagusilv"))
+
 
 r_aa_3simple<-raster_from_output(simname="3simple", decade="40", spec="abiealba", variable="biomass_cohort")
 r_fs_3simple<-raster_from_output(simname="3simple", decade="40", spec="fagusilv", variable="biomass_cohort")
@@ -84,7 +87,7 @@ plot(r_fs_3simple_mo)
 plot(r_pa_3simple_mo)
 
 
-#### 3 Species with browsing
+#### 3 Species with browsing 0-3
 create_inputdir("3br", species=c("abiealba", "fagusilv", "piceabie"), ex=aui)
 run_landclim_model("3br")
 
@@ -93,7 +96,26 @@ r_aa_3br_mo<-raster_from_output(simname="3br", decade="40", spec="abiealba", var
 r_fs_3br_mo<-raster_from_output(simname="3br", decade="40", spec="fagusilv", variable="light_rf")
 r_pa_3br_mo<-raster_from_output(simname="3br", decade="40", spec="piceabie", variable="light_rf")
 
+ele<-read.csv("Simulations/3br/Output/elevation_biomass_out.csv")
+plot_elevation_gradient(ele, species=c("abiealba", "piceabie","fagusilv"))
+
+
 plot(r_aa_3br_mo)
 plot(r_fs_3br_mo)
 plot(r_pa_3br_mo)
+
+#### Silver Fir Monoculture
+create_inputdir("mono_piceabie", species=c("piceabie"), ex=aui)
+run_landclim_model("mono_piceabie")
+ele_mp<-read.csv("Simulations/mono_piceabie/Output/elevation_biomass_out.csv")
+plot_elevation_gradient(ele_mp, species=c("piceabie"), selection=43)
+
+
+#### Abie alba Monoculture
+create_inputdir("mono_abiealba", species="abiealba", ex=aui)
+run_landclim_model("mono_abiealba")
+ele_aa <-read.csv("Simulations/mono_abiealba/Output/elevation_biomass_out.csv")
+plot_elevation_gradient(ele_aa, species=c("abiealba"), selection=43)
+
+
 
