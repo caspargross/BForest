@@ -6,3 +6,4 @@ core
 Data/*
 Simulations/*
 Animate/*
+*.asc
