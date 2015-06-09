@@ -19,12 +19,17 @@ run_landclim_model<-function(sim_name, ctl_file="ctl_bforest.xml", lcpath="/Data
 create_inputdir <- function (sim_name,
                              climpath="Data/DWD/climate_feldberg.dat",
                              ctlpath="Data/Landclim/",
-                             species=c("abiealba", "fagusilv", "larideci"), ex ) {
+                             species=c("abiealba", "piceabie"), ex,
+                             inputfile=F) {
   simdir<-paste("Simulations/",sim_name,"/Input" ,sep="")
   dir.create(simdir, recursive=TRUE)
   file.copy(climpath, simdir)
-  file.copy(paste(ctlpath, "ctl_bforest.xml", sep=""), simdir)
   file.copy(paste(ctlpath, "landtype.xml", sep=""), simdir)
+  if (inputfile!=F) {
+    file.copy(paste("Data/Init_State/", inputfile, ".csv", sep=""), simdir)
+    file.rename(paste(simdir,"/",inputfile, ".csv", sep=""), paste(simdir, "/init_state_dispersal.csv", sep=""))
+    file.copy(paste(ctlpath, "ctl_bforest_dispersal.xml", sep=""), simdir)
+  } else { file.copy(paste(ctlpath, "ctl_bforest.xml", sep=""), simdir) }
   specieslist<-read_species_xml("Data/Species_Full/species.xml")
   specieslist <- specieslist[specieslist$name %in% species,]
   write_species_xml(specieslist, file=paste(simdir,"/species.xml", sep=""))
@@ -86,12 +91,40 @@ rev_ycoords <-function(out, aui_rev=aui, res_rev=c(25,25))
   out
 }
 
+
 out2raster <- function (dat, var="elevation")
 {
   dat$biomass_cohort <- dat$biomass * dat$stems
   ex <- extent(min(dat$xcoord), max(dat$xcoord), min(dat$ycoord), max(dat$ycoord)) 
   r <- raster (ex=ex, res=c(25,25), crs="+init=epsg:31467")
-  r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[,var])
+  if (var=="species" | var=="dom_species") {   ## This function creates a factorized raster for species information. Plot with levelplot (rasterVis)
+      r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=as.numeric(dat[,var]))
+      r <- ratify(r) 
+      rat <- levels(r)[[1]]
+      rat$legend <- levels(dat$species)
+      levels(r) <- rat
+      } else {r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[,var])}
   r
 }
 
+
+### Create Mask for superposition
+
+create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile)
+{
+  outputfile <- init1
+  if (class(outputfile)[1]=="RasterLayer") {mask <- outputfile 
+  } else {mask <- out2raster(outputfile)}
+  print(plot(mask))
+  mask[] <- NA
+    
+  for (i in seq(npatch_row)) {centerrow[i]<-i*(ceiling(nrow(mask)/(npatch_row+1)))}
+  for (i in seq(npatch_col)) {centercol[i]<-i*(ceiling(ncol(mask)/(npatch_col+1)))}
+
+  xpatch <- sapply(centerrow, function (x) floor((x-(patch_width/2)):(x+(patch_width/2))))
+  ypatch <- sapply(centercol, function (x) floor((x-(patch_length/2)):(x+(patch_length/2))))
+
+  mask[c(xpatch), c(ypatch)]<-1
+  print(plot(mask, col="red", add=T, legend=F))
+  mask
+}

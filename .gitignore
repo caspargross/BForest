@@ -3,5 +3,6 @@
 .RData
 core
 *.csv
-/Data/*
-/Simulations/*
+Data/*
+Simulations/*
+Animate/*

@@ -7,6 +7,7 @@
 setwd("/home/caspar/Bachelor_Thesis/BForest/")
 library(raster)
 library(devtools)
+library(rasterVis)
 
 #install_github("KDolos/LandClimTools")
 library(LandClimTools)
@@ -118,4 +119,15 @@ ele_aa <-read.csv("Simulations/mono_abiealba/Output/elevation_biomass_out.csv")
 plot_elevation_gradient(ele_aa, species=c("abiealba"), selection=43)
 
 
+#### DISPERSAL 3x4_2x2
+create_inputdir("disp_3x4_2x2", species=c("abiealba", "piceabie"), ex=aui, inputfile="3x4_2x2_mono50")
+run_landclim_model("disp_3x4_2x2", ctl_file="ctl_bforest_dispersal.xml")
+ele_dis3x4 <-read.csv("Simulations/disp_3x4_2x2/Output/elevation_biomass_out.csv")
+plot_elevation_gradient(ele_dis3x4, species=c("abiealba","piceabie"), selection=43)
+a_3x4_2x3 <- read.csv("Simulations/disp_3x4_2x2/Output/fullOut_40.csv")
+a_3x4_2x3 <- rev_ycoords(a_3x4_2x3)
+str(a_3x4_2x3)
+r_3x4_2x3 <- out2raster(a_3x4_2x3 , var="species")
+levelplot(r_3x4_2x3)
 
+str(r_3x4_2x3)
