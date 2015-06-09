@@ -1,0 +1,8 @@
+.Rproj.user
+.Rhistory
+.RData
+core
+*.csv
+Data/*
+Simulations/*
+Animate/*
