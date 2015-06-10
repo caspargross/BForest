@@ -94,7 +94,6 @@ rev_ycoords <-function(out, aui_rev=aui, res_rev=c(25,25))
 
 out2raster <- function (dat, var="elevation")
 {
-  dat$biomass_cohort <- dat$biomass * dat$stems
   ex <- extent(min(dat$xcoord), max(dat$xcoord), min(dat$ycoord), max(dat$ycoord)) 
   r <- raster (ex=ex, res=c(25,25), crs="+init=epsg:31467")
   if (var=="species" | var=="dom_species") {   ## This function creates a factorized raster for species information. Plot with levelplot (rasterVis)
@@ -128,3 +127,17 @@ create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outp
   print(plot(mask, col="red", add=T, legend=F))
   mask
 }
+
+## Create percentage Biomass DT from Outputfile
+biomass_dt <- function (file) {
+  DT <- fread(file)
+  DT <- rev_ycoords(DT)   #reverse Ycoords
+  DT[,biomass_cohort:=biomass*stems]     #create cohort_biomass
+  DT <- DT[,.(biomass_cohort=sum(biomass_cohort)),by=list(species, cell, xcoord, ycoord)]  #
+  DT[species=="abiealba", biomass_aa:=biomass_cohort]
+  DT[species=="piceabie", biomass_pa:=biomass_cohort]
+  DT <- DT[,.(biomass_cell=sum(biomass_cohort), biomass_aa=sum(biomass_aa, na.rm=T), biomass_pa=sum(biomass_pa, na.rm=T) ), by=.(cell, xcoord, ycoord)]
+  DT[,biomass_perc:=((biomass_aa/biomass_cell)*100)]
+  as.data.frame(DT)
+}
+
