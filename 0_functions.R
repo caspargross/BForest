@@ -4,7 +4,7 @@
 
 run_landclim_model<-function(sim_name, ctl_file="ctl_bforest.xml", lcpath="/Data/Landclim/LandClim"){
   oldwd <- getwd()
-  dir.create(paste("Simulations/",sim_name,"/Output",sep=""))
+  if (file.exists(paste("Simulations/",sim_name,"/Output",sep=""))) unlink(paste("Simulations/",sim_name,"/Output",sep=""), recursive=TRUE)
   dir.create(paste("Simulations/",sim_name,"/Output",sep=""))   ### Erstellt das Verzeichnis, in das die Ergebnisse geschrieben werden. Es muss so heißen, wie im LandClim-Controll-File angegeben.
   setwd(paste("Simulations/",sim_name,"/Input",sep="")) ### Damit der "system"-Befehl funktioniert, muss in R das working directory der Ordner "Input" der entsprechenden Simulation sein.
   print(getwd())
@@ -18,24 +18,29 @@ run_landclim_model<-function(sim_name, ctl_file="ctl_bforest.xml", lcpath="/Data
 
 create_inputdir <- function (sim_name,
                              climpath="Data/DWD/climate_feldberg.dat",
-                             ctlpath="Data/Landclim/",
-                             species=c("abiealba", "piceabie"), ex,
-                             inputfile=F) {
+                             species=c("abiealba", "piceabie"), ex=F,
+                             LandClimRasterStack=maps25,
+                             inputfile=F,
+                             ctlfile="Data/Landclim/ctl_bforest.xml",
+                             landtypefile="Data/Landclim/landtype.xml"){
   simdir<-paste("Simulations/",sim_name,"/Input" ,sep="")
+  print("test1")
+  if (file.exists(simdir)) unlink(simdir, recursive=TRUE)
   dir.create(simdir, recursive=TRUE)
   file.copy(climpath, simdir)
-  file.copy(paste(ctlpath, "landtype.xml", sep=""), simdir)
+  print("test2")
+  file.copy(landtypefile, simdir)
   if (inputfile!=F) {
     file.copy(paste("Data/Init_State/", inputfile, ".csv", sep=""), simdir)
-    file.rename(paste(simdir,"/",inputfile, ".csv", sep=""), paste(simdir, "/init_state_dispersal.csv", sep=""))
-    file.copy(paste(ctlpath, "ctl_bforest_dispersal.xml", sep=""), simdir)
-  } else { file.copy(paste(ctlpath, "ctl_bforest.xml", sep=""), simdir) }
+   }
+  file.copy(ctlfile, simdir) 
+  print("test3")
   specieslist<-read_species_xml("Data/Species_Full/species.xml")
   specieslist <- specieslist[specieslist$name %in% species,]
   write_species_xml(specieslist, file=paste(simdir,"/species.xml", sep=""))
   oldwd<-getwd()
   setwd(simdir)
-  write_LandClim_maps(LandClimRasterStack=maps25, nodata_value="-9999", lcResolution=25, ex=ex)
+  write_LandClim_maps(LandClimRasterStack, nodata_value="-9999", lcResolution=25, ex=ex)
   setwd(oldwd)                  
 }
 

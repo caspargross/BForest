@@ -9,7 +9,7 @@ library(raster)
 library(devtools)
 library(rasterVis)
 
-#install_github("KDolos/LandClimTools")
+install_github("KDolos/LandClimTools")
 library(LandClimTools)
  
 
@@ -36,7 +36,7 @@ plot (dem_gk)
 plot(aui, add=T)
 
 source("3_makeLandClimMaps.R")
-maps25<-create_LandClim_Maps(dem_gk)
+maps25<-create_LandClim_Maps(dem_gkm)
 
 #### TEST
 create_inputdir("testbf", species=c("abiealba", "fagusilv"), ex=aui)
