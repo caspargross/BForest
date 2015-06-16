@@ -24,17 +24,14 @@ create_inputdir <- function (sim_name,
                              ctlfile="Data/Landclim/ctl_bforest.xml",
                              landtypefile="Data/Landclim/landtype.xml"){
   simdir<-paste("Simulations/",sim_name,"/Input" ,sep="")
-  print("test1")
   if (file.exists(simdir)) unlink(simdir, recursive=TRUE)
   dir.create(simdir, recursive=TRUE)
   file.copy(climpath, simdir)
-  print("test2")
   file.copy(landtypefile, simdir)
   if (inputfile!=F) {
     file.copy(paste("Data/Init_State/", inputfile, ".csv", sep=""), simdir)
    }
   file.copy(ctlfile, simdir) 
-  print("test3")
   specieslist<-read_species_xml("Data/Species_Full/species.xml")
   specieslist <- specieslist[specieslist$name %in% species,]
   write_species_xml(specieslist, file=paste(simdir,"/species.xml", sep=""))
@@ -96,6 +93,26 @@ rev_ycoords <-function(out, aui_rev=aui, res_rev=c(25,25))
   out
 }
 
+rev_ycoordsDT <-function(out, aui_rev=aui, res_rev=c(25,25)) 
+{ require(data.frame)
+  out <- init1[[2]]
+  yc <- seq (from=aui_rev@ymin, to=aui_rev@ymax-1, by=res_rev[2])
+  
+  for (i in 1:length(unique(out$ycoord)))  out[row==i, ycoord:= yc[i]]
+  
+  i <- 1
+  
+  
+  out[,ycoord:=NULL]
+  out[, unique(ycoord), by=ycoord]
+  yc <- seq (from=aui_rev@ymin, to=aui_rev@ymax-1, by=res_rev[2])
+  
+  out[,print(ycoord), by=row]
+  foo <- function (x) (aui_rev@ymax+res_rev[2])-(which(unique(yc)==x)*res_rev[2])
+  out$ycoord <- sapply(yc, foo)
+  out <- out[order(-out$ycoord, out$xcoord),]
+  out
+}
 
 out2raster <- function (dat, var="elevation")
 {
@@ -116,7 +133,9 @@ out2raster <- function (dat, var="elevation")
 
 create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile)
 {
-  outputfile <- init1
+  #outputfile <- init1
+  centerrow <- NULL
+  centercol <- NULL
   if (class(outputfile)[1]=="RasterLayer") {mask <- outputfile 
   } else {mask <- out2raster(outputfile)}
   print(plot(mask))
@@ -146,3 +165,15 @@ biomass_dt <- function (file) {
   as.data.frame(DT)
 }
 
+## Apply mask to raster!
+mask_apply <- function (x, y, mask=mask1) {
+  x<-init1[[1]]
+  y<-init2[[1]]
+  cell_mask<-rowColFromCell(mask, which(mask[]==1))
+  out1 <- x[-which(paste(x$row, x$col) %in% paste(cell_mask[,"row"], cell_mask[,"col"])),]
+  out1 <- rbind(out1, y[which(paste(y$row, y$col) %in% paste(cell_mask[,"row"], cell_mask[,"col"])),])
+  out1 <- out1[order(out1$row, out1$col, -out1$age),] #Reorder data.frame
+  row.names(out1) <- seq_along(out1[,1])
+  out1
+  #View(out1)
+}

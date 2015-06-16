@@ -5,7 +5,7 @@
 create_LandClim_Maps <- function(dem, no_aspect=F) {
 require(raster)
 require(rgdal)
-#dem <- dem_gk#´
+#dem <- dem_gk
 #ex <- aui
 if (no_aspect) {
   ### Without Slope
@@ -40,7 +40,7 @@ plot(maps, main="Original Maps")
 
 print(ex)
 ### Resample LancClimMaps
-if (all(c(25,25) == res(maps25))) maps25 <- maps else maps25 <- resample_LandClim_maps(maps)
+if (res(maps)==c(25,25)) maps25 <- maps else maps25 <- resample_LandClim_maps(maps)
 plot(maps25>0, main="Resampled Maps (25)")
 maps25
 }
