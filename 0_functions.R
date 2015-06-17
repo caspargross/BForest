@@ -29,7 +29,7 @@ create_inputdir <- function (sim_name,
   file.copy(climpath, simdir)
   file.copy(landtypefile, simdir)
   if (inputfile!=F) {
-    file.copy(paste("Data/Init_State/", inputfile, ".csv", sep=""), simdir)
+    file.copy(inputfile, paste(simdir,"/tree_init.csv", sep=""))
    }
   file.copy(ctlfile, simdir) 
   specieslist<-read_species_xml("Data/Species_Full/species.xml")
@@ -94,24 +94,12 @@ rev_ycoords <-function(out, aui_rev=aui, res_rev=c(25,25))
 }
 
 rev_ycoordsDT <-function(out, aui_rev=aui, res_rev=c(25,25)) 
-{ require(data.frame)
-  out <- init1[[2]]
-  yc <- seq (from=aui_rev@ymin, to=aui_rev@ymax-1, by=res_rev[2])
-  
-  for (i in 1:length(unique(out$ycoord)))  out[row==i, ycoord:= yc[i]]
-  
-  i <- 1
-  
-  
-  out[,ycoord:=NULL]
-  out[, unique(ycoord), by=ycoord]
-  yc <- seq (from=aui_rev@ymin, to=aui_rev@ymax-1, by=res_rev[2])
-  
-  out[,print(ycoord), by=row]
-  foo <- function (x) (aui_rev@ymax+res_rev[2])-(which(unique(yc)==x)*res_rev[2])
-  out$ycoord <- sapply(yc, foo)
-  out <- out[order(-out$ycoord, out$xcoord),]
-  out
+{ require(data.table)
+  yc <- seq (from=aui_rev@ymin, to=aui_rev@ymax, by=res_rev[2])
+  out$ycoord <- 0
+  out$ycoord <- as.integer(out$ycoord)
+  for (i in 1:length(unique(out$row)))  {out[row==i, ycoord:=yc[i]]}
+  out[order(-rank(ycoord), xcoord)]
 }
 
 out2raster <- function (dat, var="elevation")
@@ -119,15 +107,28 @@ out2raster <- function (dat, var="elevation")
   ex <- extent(min(dat$xcoord), max(dat$xcoord), min(dat$ycoord), max(dat$ycoord)) 
   r <- raster (ex=ex, res=c(25,25), crs="+init=epsg:31467")
   if (var=="species" | var=="dom_species") {   ## This function creates a factorized raster for species information. Plot with levelplot (rasterVis)
-      r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=as.numeric(dat[,var]))
+      r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=as.numeric(dat[[var]]))
       r <- ratify(r) 
       rat <- levels(r)[[1]]
       rat$legend <- levels(dat$species)
       levels(r) <- rat
-      } else {r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[,var])}
+      } else {r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[[var]])}
   r
 }
 
+## For data.table class
+out2rasterDT <- function (dat, var="species"){ 
+  ex <- extent(min(dat$xcoord), max(dat$xcoord), min(dat$ycoord), max(dat$ycoord)) 
+  r <- raster (ex=ex, res=c(25,25), crs="+init=epsg:31467")
+  if (var=="species" | var=="dom_species") {   ## This function creates a factorized raster for species information. Plot with levelplot (rasterVis)
+    r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=as.numeric(as.factor(dat[[var]])))
+    r <- ratify(r) 
+    rat <- levels(r)[[1]]
+    rat$legend <- levels(as.factor(dat$species))
+    levels(r) <- rat
+  } else {r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[[var]])}
+  r
+}
 
 ### Create Mask for superposition
 
@@ -137,10 +138,10 @@ create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outp
   centerrow <- NULL
   centercol <- NULL
   if (class(outputfile)[1]=="RasterLayer") {mask <- outputfile 
-  } else {mask <- out2raster(outputfile)}
-  print(plot(mask))
+  } else {mask <- out2rasterDT(outputfile)}
+  #print(plot(mask))
   mask[] <- NA
-    
+  print("empty mask loaded")  
   for (i in seq(npatch_row)) {centerrow[i]<-i*(ceiling(nrow(mask)/(npatch_row+1)))}
   for (i in seq(npatch_col)) {centercol[i]<-i*(ceiling(ncol(mask)/(npatch_col+1)))}
 
@@ -148,7 +149,8 @@ create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outp
   ypatch <- sapply(centercol, function (x) floor((x-(patch_length/2)):(x+(patch_length/2))))
 
   mask[c(xpatch), c(ypatch)]<-1
-  print(plot(mask, col="red", add=T, legend=F))
+  print("mask created")
+  #print(plot(mask, col="red", add=T, legend=F))
   mask
 }
 
@@ -167,13 +169,12 @@ biomass_dt <- function (file) {
 
 ## Apply mask to raster!
 mask_apply <- function (x, y, mask=mask1) {
-  x<-init1[[1]]
-  y<-init2[[1]]
   cell_mask<-rowColFromCell(mask, which(mask[]==1))
   out1 <- x[-which(paste(x$row, x$col) %in% paste(cell_mask[,"row"], cell_mask[,"col"])),]
   out1 <- rbind(out1, y[which(paste(y$row, y$col) %in% paste(cell_mask[,"row"], cell_mask[,"col"])),])
   out1 <- out1[order(out1$row, out1$col, -out1$age),] #Reorder data.frame
-  row.names(out1) <- seq_along(out1[,1])
+  #row.names(out1) <- seq_along(out1[,1])
+  print("mask apply sequence finished")
   out1
   #View(out1)
 }

@@ -52,22 +52,57 @@ lapply(paste("dis_init_fs-pa_", seq_along(maps_list), sep=""), function(x) run_l
 
 initlist1 <- as.list( paste("Simulations/dis_init_fs-pa_", seq_along(maps_list), "/Output/fullOut_50.csv", sep=""))
 initlist2 <- as.list( paste("Simulations/dis_init_aa_", seq_along(maps_list), "/Output/fullOut_50.csv", sep=""))
-outputlist<- as.list( paste("Data/Init_State/dis_1x1_2x100_alt", seq_along(maps_list),  sep=""))
+outputlist<- as.list( paste("Data/Init_State/dis_1x1_2x100_alt", seq_along(maps_list), ".csv", sep=""))
 
-combine_input (initlist1,  # Inputfile1
-               initlist2,  # Inputfile2
-               outputfile = outputlist,
-               npatch_col=1, npatch_row=1, patch_width=2, patch_length=100,  #Form of patches
-               aui=extent(maps_list[[1]]) )
+combine_input (initlist1,  
+               initlist2, 
+               outputlist,
+               1, 1, 2, 100,  
+               extent(maps_list[[1]]))
 
+## Check Input Files
+
+input_files <- as.list(paste("Data/Init_State/dis_1x1_2x100_alt", 1:8,".csv", sep=""))
+input_files <- lapply(input_files, fread)
+input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
+levelplot(out2rasterDT(input_files[[1]], var="species"))
 
 ## Run Model with Dispersal
 for (i in seq_along (maps_list)) { create_inputdir (paste("dis_1x100_", i, sep=""),
                                                     climpath="Data/DWD/climate_feldberg.dat",
-                                                    species=c("abiealba"), ex=F,
+                                                    species=c("abiealba", "fagusilv", "piceabie"), ex=F,
                                                     LandClimRasterStack=maps_list[[i]],
-                                                    inputfile="Data/Init_State/dis_1x1_2x100.csv",
+                                                    inputfile=paste("Data/Init_State/dis_1x1_2x100_alt", i,".csv", sep=""),
                                                     ctlfile="Data/Landclim/ctl_bforest_dis_2000.xml",
                                                     landtypefile="Data/Landclim/landtype.xml") }
-lapply(paste("dis_init_aa_", seq_along(maps_list), sep=""), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"))
+
+lapply(paste("dis_1x100_", seq_along(maps_list), sep=""), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"))
+
+
+
+
+
+
+############ REDO INPUT FILES!
+# error search
+
+err_init1 <- lapply(initlist1, fread)
+err_init1<- lapply(err_init1, rev_ycoordsDT)
+levelplot(out2rasterDT(err_init1[[6]], var="species"))
+
+err_init2 <- lapply(initlist2, fread)
+err_init2<- lapply(err_init2, rev_ycoordsDT)
+levelplot(out2rasterDT(err_init2[[6]], var="species"))
+
+
+
+
+#### Load Dispersal Model results
+list_results <- as.list (paste("Simulations/dis_1x100_5/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
+dis_results <- lapply(list_results, fread)
+dis_results <- lapply(dis_results, rev_ycoordsDT)
+ras_dis_results <- lapply(dis_results, function(x) out2raster(x, var="species"))
+
+levelplot(out2rasterDT(dis_results[[20]], var="species"))
+
 
