@@ -132,7 +132,7 @@ out2rasterDT <- function (dat, var="species"){
 
 ### Create Mask for superposition
 
-create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile)
+create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile, p=F)
 {
   #outputfile <- init1
   centerrow <- NULL
@@ -150,9 +150,60 @@ create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outp
 
   mask[c(xpatch), c(ypatch)]<-1
   print("mask created")
-  #print(plot(mask, col="red", add=T, legend=F))
+  if (p==T) print(plot(mask, col="red", add=T, legend=F))
   mask
 }
+
+create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile, p=F)
+{
+  #outputfile <- init1
+  
+  centerrow <- NULL
+  centercol <- NULL
+  if (class(outputfile)[1]=="RasterLayer") {mask <- outputfile 
+  } else {mask <- out2rasterDT(outputfile)}
+  #print(plot(mask))
+  mask[] <- NA
+  print("empty mask loaded")
+  
+  for (i in seq(npatch_row)) {centerrow[i]<-i*(ceiling(nrow(mask)/(npatch_row+1)))}
+  for (i in seq(npatch_col)) {centercol[i]<-i*(ceiling(ncol(mask)/(npatch_col+1)))}
+  
+  xpatch <- sapply(centerrow, function (x) floor((x-(patch_width/2)):(x+(patch_width/2))))
+  ypatch <- sapply(centercol, function (x) floor((x-(patch_length/2)):(x+(patch_length/2))))
+  
+  mask[c(xpatch), c(ypatch)]<-1
+  print("mask created")
+  if (p==T) print(plot(mask, col="red", legend=F))
+  mask
+}
+
+
+
+
+
+create_mask_front <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile, p=F)
+{
+  
+  xc_plus <- (nrow(mask)/npatch_row)*1:npatch_row
+  xc_minus<- sort(nrow(mask)-(nrow(mask)/npatch_row)*1:npatch_row)
+  xcorners <- mapply(function(x,y) mean(c(x,y)), x=xc_plus, y=xc_minus)
+  xcorners <- round(xcorners - (patch_width/2))
+  
+  
+  yc_plus <- (ncol(mask)/npatch_col)*1:npatch_col
+  yc_minus<- sort(ncol(mask)-(ncol(mask)/npatch_col)*1:npatch_col)
+  ycorners <- mapply(function(x,y) mean(c(x,y)), x=yc_plus, y=yc_minus)
+  ycorners <- round(ycorners - (patch_length/2))
+  
+  xpatch <- sapply(xcorners, function (x) x:(x+patch_width))
+  ypatch <- sapply(ycorners, function (x) x:(x+patch_length))
+  
+  mask[c(xpatch), c(ypatch)]<-1
+  print("mask created")
+  if (p==T) print(plot(mask, col="red", legend=F))
+}
+
 
 ## Create percentage Biomass DT from Outputfile
 biomass_dt <- function (file) {

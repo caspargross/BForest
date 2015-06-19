@@ -17,9 +17,13 @@ DT <- DT[,.(biomass_cohort=sum(biomass_cohort)),by=list(species, cell, xcoord, y
 DT <- DT[,.(biomass_cell=sum(biomass_cohort), biomass_aa=sum(biomass_aa, na.rm=T), biomass_pa=sum(biomass_pa, na.rm=T) ), by=.(cell, xcoord, ycoord)]
       DT[,biomass_perc:=((biomass_aa/biomass_cell)*100)]
 
-
-
 ##### As function:
+
+
+
+DT <- 
+
+
 
 
 

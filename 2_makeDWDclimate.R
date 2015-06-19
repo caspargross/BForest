@@ -47,7 +47,7 @@ clim <- cbind(temp, prec)
 csamp <- sample(1:nrow(clim), 5000, replace=T)
 clim <-clim[csamp,]
 row.names(clim) <- seq(nrow(clim))
-write.table(clim, paste(datapath,"clim_feldberg.txt", sep=""), sep=" ", dec=".", quote = FALSE)
+write.table(clim, paste(datapath,"clim_feldberg.txt", sep=""), sep=" ", dec=".", quote = FALSE, col.names=F,)
 
 
 #### Save Climate as .dat with header
@@ -56,7 +56,7 @@ header <- header[1:14]
 header[2] <- "48 #latitude; used for cacluating drought index in model bugmann#"  ## LATITUDE OF STATION
 header[3] <-   "1490 #meter a.s.l. #"            ## Altitude of Station
 writeLines(header, paste(datapath,"climate_feldberg.dat", sep=""))
-write.table(clim, paste(datapath,"climate_feldberg.dat", sep=""), append=T, row.names=T, col.names=F)
+write.table(clim, paste(datapath,"climate_feldberg.dat", sep=""), append=T, row.names=T, col.names=F, quote=F)
 
 
 
