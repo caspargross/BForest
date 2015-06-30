@@ -182,12 +182,11 @@ create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outp
 
 
 
-create_mask_front <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile, p=F)
-{
+create_mask_p <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile, p=F, vshift=0){
   
   xc_plus <- (nrow(mask)/npatch_row)*1:npatch_row
   xc_minus<- sort(nrow(mask)-(nrow(mask)/npatch_row)*1:npatch_row)
-  xcorners <- mapply(function(x,y) mean(c(x,y)), x=xc_plus, y=xc_minus)
+  xcorners <- mapply(function(x,y) mean(c(x,y))+vshift, x=xc_plus, y=xc_minus)
   xcorners <- round(xcorners - (patch_width/2))
   
   
@@ -196,12 +195,13 @@ create_mask_front <- function (npatch_row, npatch_col, patch_width, patch_length
   ycorners <- mapply(function(x,y) mean(c(x,y)), x=yc_plus, y=yc_minus)
   ycorners <- round(ycorners - (patch_length/2))
   
-  xpatch <- sapply(xcorners, function (x) x:(x+patch_width))
-  ypatch <- sapply(ycorners, function (x) x:(x+patch_length))
+  xpatch <- sapply(xcorners, function (x) x:(x+(patch_width-1)))
+  ypatch <- sapply(ycorners, function (x) x:(x+(patch_length-1)))
   
   mask[c(xpatch), c(ypatch)]<-1
   print("mask created")
   if (p==T) print(plot(mask, col="red", legend=F))
+  mask
 }
 
 

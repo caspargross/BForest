@@ -11,7 +11,7 @@ library(rgdal)
 library(raster)
 
 
-dis_landscape <- function (alt) {
+dis_landscape_p <- function (alt) {
   ## Flat Gradient Model Landscape
   gk_projection<-CRS("+init=epsg:31467") # GK Zone 3 (Black Forest)
   nr <-200  #corresponds to 5000m
@@ -26,74 +26,99 @@ dis_landscape <- function (alt) {
 
 ### Create map list
 
-list_alt <- as.list (seq (400, 1800, 200))
-maps_list <- lapply (list_alt, dis_landscape)
+list_alt_p <- as.list (seq (400, 1800, 200))
+maps_list_p <- lapply (list_alt_p, dis_landscape_p)
 
 
 ## Create Simulations
-for (i in seq_along (maps_list)) { create_inputdir (paste("dis_init_fs-pa_", i, sep=""),
+for (i in seq_along (maps_list_p)) { create_inputdir (paste("dis_patch_init_fs-pa_", i, sep=""),
                                                     climpath="Data/DWD/climate_feldberg.dat",
                                                     species=c("fagusilv", "piceabie"), ex=F,
-                                                    LandClimRasterStack=maps_list[[i]],
+                                                    LandClimRasterStack=maps_list_p[[i]],
                                                     inputfile=F,
                                                     ctlfile="Data/Landclim/ctl_bforest_50.xml",
                                                     landtypefile="Data/Landclim/landtype.xml") }
 
-for (i in seq_along (maps_list)) { create_inputdir (paste("dis_init_aa_", i, sep=""),
+for (i in seq_along (maps_list_p)) { create_inputdir (paste("dis_patch_init_aa_", i, sep=""),
                                                     climpath="Data/DWD/climate_feldberg.dat",
                                                     species=c("abiealba"), ex=F,
-                                                    LandClimRasterStack=maps_list[[i]],
+                                                    LandClimRasterStack=maps_list_p[[i]],
                                                     inputfile=F,
                                                     ctlfile="Data/Landclim/ctl_bforest_50.xml",
                                                     landtypefile="Data/Landclim/landtype.xml") }
 
-## Run LandClim Model
-lapply(paste("dis_init_aa_", seq_along(maps_list), sep=""), function(x) run_landclim_model(x, ctl_file="ctl_bforest_50.xml"))
-lapply(paste("dis_init_fs-pa_", seq_along(maps_list), sep=""), function(x) run_landclim_model(x, ctl_file="ctl_bforest_50.xml"))
+## Run LandClim Model for Background World
+mclapply(as.list(paste("dis_patch_init_fs-pa_", seq_along(maps_list_p), sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_50.xml"), mc.cores=3)
+mclapply(as.list(paste("dis_patch_init_aa_", seq_along(maps_list_p), sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_50.xml"), mc.cores=3)
 
-## Create Inputfiles
 
-initlist1 <- as.list( paste("Simulations/dis_init_fs-pa_", seq_along(maps_list), "/Output/fullOut_50.csv", sep=""))
-initlist2 <- as.list( paste("Simulations/dis_init_aa_", seq_along(maps_list), "/Output/fullOut_50.csv", sep=""))
-outputlist<- as.list( paste("Data/Init_State/dis_1x1_2x100_alt", seq_along(maps_list), ".csv", sep=""))
+## Check Background World
+input_files <- as.list(paste("Simulations/dis_patch_init_fs-pa_", 1:8,"/Output/fullOut_50.csv", sep=""))
+input_files <- lapply(input_files, fread)
+input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
+levelplot(out2rasterDT(input_files[[1]], var="species"))
 
-mask <- raster(extent(maps_list[[1]]), resolution=res(maps_list[[1]]))
 
-m1 <- (create_mask(1,1,20,20,mask, p=TRUE)) # 1x400
-m2 <- (create_mask_front(1,2,10,20,mask, p=TRUE)) # 2x200
-m3 <- (create_mask(2,2,10,10,mask, p=TRUE)) # 4x100
-m4 <- (create_mask(2,2,10,10,mask, p=TRUE)) # 8x50  #TODO 2 3 3
-m5 <- (create_mask(4,4,5,5,mask, p=TRUE))   # 16x25
-m6 <- (create_mask(5,4,4,5,mask, p=TRUE))   # 20x20
-m7 <- (create_mask(5,5,4,4,mask, p=TRUE))   # 25x16
-m8 <- (create_mask(10,10,20,20,mask, p=TRUE)) # 50x8
-m9<- (create_mask(1,1,20,20,mask, p=TRUE)) # 100x4
-m10 <- (create_mask(1,1,20,20,mask, p=TRUE)) # 200x2
-m11 <- (create_mask_front(20,20,1,1,mask, p=TRUE)) # 400x1
 
-combine_input (initlist1,  
-               initlist2, 
-               outputlist,
+#### Create Inputfiles
+mask <- raster(extent(maps_list_p[[1]]), resolution=res(maps_list_p[[1]]))
+
+m1 <- (create_mask_p(1,1,20,20, mask, p=TRUE)) # 1x400
+m2 <- (create_mask_p(1,2,20,10, mask, p=TRUE)) # 2x200
+m3 <- (create_mask_p(2,2,10,10, mask, p=TRUE)) # 4x100
+m4.1 <- (create_mask_p(3,3,6,7, mask, p=TRUE)) # 8x50  # 6 6x7 patches --> 252 Cells
+m4.2 <- (create_mask_p(1,3,7,7, mask, p=TRUE)) # 8x50  # 3 7x7 patches --> 147 Cells | Total: 399 Cells
+m4 <- m4.1 | m4.2 # Combine rasters
+m5 <- (create_mask_p(4,4,5,5, mask, p=TRUE))   # 16x25
+m6 <- (create_mask_p(5,4,4,5, mask, p=TRUE))   # 20x20
+m7 <- (create_mask_p(5,5,4,4, mask, p=TRUE))   # 25x16
+m8.1 <- (create_mask_p(7,7,3,3, mask, p=TRUE)) # 50x8  # 49 3x3 patches --> 441 Cells
+m8.2 <- (create_mask_p(7,1,2,3, mask, p=TRUE, vshift=0)) # remove 7 2*3 = 42 Patches | Total: 399 Cells
+m8 <- m8.1 - !is.na(m8.2)
+m8[m8[]==0] <- NA
+m9 <- (create_mask_p(10,10,2,2, mask, p=TRUE)) # 100x4
+m10 <-(create_mask_p(10,20,2,1, mask, p=TRUE)) # 200x2
+m11 <-(create_mask_p(20,20,1,1, mask, p=TRUE)) # 400x1
+
+
+for (i in 1:11) {
+
+initlist1_p <- as.list( paste("Simulations/dis_patch_init_fs-pa_", seq_along(maps_list_p), "/Output/fullOut_50.csv", sep=""))
+initlist2_p <- as.list( paste("Simulations/dis_patch_init_aa_", seq_along(maps_list_p), "/Output/fullOut_50.csv", sep=""))
+outputlist_p<- as.list( paste("Data/Init_State/dis_patch_init_alt_", seq_along(maps_list_p),"_m", i, ".csv", sep=""))
+
+
+combine_input (initlist1_p,  
+               initlist2_p, 
+               outputlist_p,
                1, 1, 2, 100,  
-               extent(maps_list[[1]]))
+               extent(maps_list_p[[1]]),
+               ma=eval(as.name(paste("m",i, sep=""))))
+
+}
 
 ## Check Input Files
 
-input_files <- as.list(paste("Data/Init_State/dis_1x1_2x100_alt", 1:8,".csv", sep=""))
+input_files <- as.list(paste("Data/Init_State/dis_patch_init_alt_", 1:8,"_m11.csv", sep=""))
 input_files <- lapply(input_files, fread)
-input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
-levelplot(out2rasterDT(input_files[[1]], var="species"))
+input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
+levelplot(out2rasterDT(input_files[[4]], var="species"))
 
 ## Run Model with Dispersal
+
+for (j in 1:1){ 
 for (i in seq_along (maps_list)) { create_inputdir (paste("dis_1x100_", i, sep=""),
                                                     climpath="Data/DWD/climate_feldberg.dat",
                                                     species=c("abiealba", "fagusilv", "piceabie"), ex=F,
                                                     LandClimRasterStack=maps_list[[i]],
-                                                    inputfile=paste("Data/Init_State/dis_1x1_2x100_alt", i,".csv", sep=""),
+                                                    paste("Data/Init_State/dis_patch_init_alt_", seq_along(maps_list_p),"_m", j, ".csv", sep=""),
                                                     ctlfile="Data/Landclim/ctl_bforest_dis_2000.xml",
                                                     landtypefile="Data/Landclim/landtype.xml") }
 
-lapply(paste("dis_1x100_", seq_along(maps_list), sep=""), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"))
+mclapply(as.list(paste("dis_1x100_", seq_along(maps_list), sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
+}
+
+
 
 plot(extent(maps_list[[1]]))
 

@@ -3,7 +3,7 @@
 #                        #
 ###########################
 
-combine_input <- function (filelist1, filelist2, outputfile, npatch_col, npatch_row, patch_width, patch_length, aui ) {
+combine_input <- function (filelist1, filelist2, outputfile, npatch_col, npatch_row, patch_width, patch_length, aui, ma=F ) {
 require(data.table)
 require(bit64)
 require(raster)
@@ -34,7 +34,10 @@ plot(out2rasterDT(init1 [[3]], var="species"))
 #print(class(init1[[1]]))
 #print(class(init2[[1]]))
 ## Create Mask (see 0_functions file)
-mask1 <- create_mask(npatch_col, npatch_row, patch_width, patch_length, outputfile=init2[[1]])
+
+if (class(ma) == "RasterLayer" ) {mask1 <- ma
+} else {mask1 <- create_mask(npatch_col, npatch_row, patch_width, patch_length, outputfile=init2[[1]])}
+
 print(plot(mask1))
 print("step6")
 
