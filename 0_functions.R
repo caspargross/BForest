@@ -130,6 +130,14 @@ out2rasterDT <- function (dat, var="species"){
   r
 }
 
+
+out2rasterDT2 <- function (dat, var){ 
+  ex <- extent(min(dat$xcoord), max(dat$xcoord), min(dat$ycoord), max(dat$ycoord)) 
+  r <- raster (ex=ex, res=c(25,25), crs="+init=epsg:31467")
+  r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[[var]])
+  r
+}
+
 ### Create Mask for superposition
 
 create_mask <- function (npatch_row, npatch_col, patch_width, patch_length, outputfile, p=F)

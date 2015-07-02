@@ -60,7 +60,7 @@ combine_input (initlist1,
                ma=mask)
 
 ## Check Input Files
-for (k in 2:8) {
+
   #input_files <- as.list(paste("Data/Init_State/dis_1x1_2x100_alt", 1:8,".csv", sep=""))
   #input_files <- lapply(input_files, fread)
   #input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
@@ -75,7 +75,8 @@ for (k in 2:8) {
                                                       ctlfile="Data/Landclim/ctl_bforest_dis_2000.xml",
                                                       landtypefile="Data/Landclim/landtype.xml") }
   
-  k<-2
-  mclapply(paste("dis_front_full_fast", seq_along(maps_list), "rep_",k , sep=""), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
-  
+for (k in 1:2) { 
+  mclapply(as.list(paste("dis_front_full_fast", seq_along(maps_list), "rep_",k , sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
 }
+
+

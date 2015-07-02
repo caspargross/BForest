@@ -107,105 +107,68 @@ levelplot(out2rasterDT(input_files[[4]], var="species"))
 ## Run Model with Dispersal
 
 for (j in 1:1){ 
-for (i in seq_along (maps_list)) { create_inputdir (paste("dis_1x100_", i, sep=""),
+for (i in seq_along (maps_list)) { create_inputdir (paste("dis_patch_alt_", i,"_m",j, sep=""),
                                                     climpath="Data/DWD/climate_feldberg.dat",
                                                     species=c("abiealba", "fagusilv", "piceabie"), ex=F,
-                                                    LandClimRasterStack=maps_list[[i]],
-                                                    paste("Data/Init_State/dis_patch_init_alt_", seq_along(maps_list_p),"_m", j, ".csv", sep=""),
+                                                    LandClimRasterStack=maps_list_p[[i]],
+                                                    paste("Data/Init_State/dis_patch_init_alt_", i,"_m", j, ".csv", sep=""),
                                                     ctlfile="Data/Landclim/ctl_bforest_dis_2000.xml",
                                                     landtypefile="Data/Landclim/landtype.xml") }
 
-mclapply(as.list(paste("dis_1x100_", seq_along(maps_list), sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
+mclapply(as.list(paste("dis_patch_alt_", seq_along(maps_list), "_m", j, sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
 }
 
-
-
-plot(extent(maps_list[[1]]))
-
-
 ## Check Dispersal Output files
-output_files <- as.list(paste("Simulations/dis_1x100_4/Output/fullOut_", seq(5,200,5), ".csv", sep=""))
+output_files <- as.list(paste("Simulations/dis_patch_alt_1_m1/Output/fullOut_", seq(5,200,5), ".csv", sep=""))
 output_files <- lapply(output_files, fread)
-output_files <- lapply(output_files, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
+output_files <- lapply(output_files, function(x) rev_ycoordsDT(x,  aui_rev=extent(maps_list_p[[1]])))
 for (i in 1:length(output_files)) {
-  png(filename=paste("Animate/dis_1x100_4_dec", i,".png", sep=""))
-  print(levelplot(out2rasterDT(output_files[[i]], var="species")))
+  png(filename=paste("Animate/dis_patch_alt1_m1_dec", i,".png", sep=""))
+  print(levelplot(out2rasterDT(output_files[[25]], var="species")))
   dev.off()
 }
 
-#### Load Dispersal Model results
-list_results <- as.list (paste("Simulations/dis_1x100_1/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
-dis_results <- lapply(list_results, fread)
-dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
-#ras_dis_results <- lapply(dis_results, function(x) out2rasterDT(x, var="species"))
 
-## Plot Species Distribution
-for (i in 1:length(output_files)) {
-  #png(filename=paste("Animate/dis_1x100_4_dec", i,".png", sep=""))
-  print(levelplot(out2rasterDT(output_files[[i]], var="species")))
-  Sys.sleep(0.5)
-  #dev.off()
-}
 
 
 ######### Create Plot of Established Distances (Age>60yr)
-
-dist_quartile<-data.table("Year"=0, "Elevation"=0, "Distance"=0)
-elevations <- as.integer(list_alt[])
-for (j in seq_along (maps_list)) {
+stats_p <- data.table(mask=NA, year=NA, ratio_bio_aa=NA, mass_bio_aa=NA, n_cohorts=NA)
+for (j in seq_along (maps_list_p)) {
   
-  list_results <- as.list (paste("Simulations/dis_1x100_",j,"/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
-  dis_results <- lapply(list_results, fread)
-  dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
+  list_results_p <- as.list (paste("Simulations/dis_patch_alt_", j,"_m1/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
+  dis_results_p <- lapply(list_results_p, fread)
+  dis_results_p <- lapply(dis_results_p, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
   print(paste("Loaded map",j))
   
-  distances <- list()
+ 
   
   for (i in 1:length(dis_results)) {
-    DT<-dis_results[[i]]
-    DT[,biomass_cohort:=biomass*stems]
-    y_origin <- 1200
-    DT <- DT[,.(biomass_cohort=sum(biomass_cohort)),by=list(species, cell, xcoord, ycoord,age)]
-    setkey(DT,species)
-    DT <- DT["abiealba"]
-    setkey(DT, age)
-    DT <- DT[age>=60]
-    DT[,dist:= abs(ycoord - y_origin),]
-    #hist(DT$dist)
-    distances[[i]]<-DT
-  }
-  
-  
-  for (i in 1:length(distances)) {
-    dist_quartile <- rbind(dist_quartile, list( i*50, list_alt[[j]], quantile(distances[[i]]$dist, 0.95, na.rm=T)))
+    PDT<-dis_results_p[[i]]
+    PDT[,bio_cohort:=biomass*stems]
+    PDT <- PDT[,.(bio_cohort=sum(bio_cohort), age=max(age)),by=list(species, cell, xcoord, ycoord)]
+    setkey(PDT,species)
+    PDT["abiealba", bio_aa:=bio_cohort, by=.(cell)]
+    PDT2 <- PDT[,.(bio_cell=sum(bio_cohort), bio_aa), by=.(xcoord, ycoord, cell)]
+    PDT2[is.na(PDT2)] = 0  # replace NA with 0
+    PDT2 <- PDT2[,.(bio_cell=mean(bio_cell), bio_aa=max(bio_aa), bio_quo=max((bio_aa/bio_cell)*100)), by=.(xcoord, ycoord, cell)]
+    
+    stats_p <- rbind(stats_p, list(NA, i*50, PDT2[,round((sum(bio_aa)/sum(bio_cell))*100,2)], PDT2[,sum(bio_aa),], nrow(PDT["abiealba", .(age=max(age)) , by="cell"][age>=70,,])))
+    print(paste("finished decade", i))
   }
 }
-
-dist_quartile <- dist_quartile[-1,]
-dist_quartile$Elevation <- as.factor(dist_quartile$Elevation)
-
-library(ggplot2)
-distplot <- ggplot(dist_quartile, aes(x=Year, y=Distance, group=Elevation, col = Elevation))
-distplot+geom_line()
-
-
-######### Create Plot of Established Distances (Age>60yr)
-
-for (j in seq_along (maps_list)) {
-  
-  list_results <- as.list (paste("Simulations/dis_1x100_",j,"/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
-  dis_results <- lapply(list_results, fread)
-  dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
-  print(paste("Loaded map",j))
-  
-  distances <- list()
-  
-  for (i in 1:length(dis_results)) {
-    DT<-dis_results[[i]]
-    DT[,biomass_cohort:=biomass*stems]
+    
+    DT["abiealba", bio_aa:=biomass_cohort, by=.(cell)]
+    
+    setkey(DT, cell)
+    DT
+    
+    DT[!"abiealba", bio_rest:=biomass_cohort, by=.(cell)]
+    DT[!"abiealba", bio_perc:=bio_rest/bio_aa, by=.(cell)]
+    
+    DT2<-DT[,.(biomass_cohort, age=max(age), bio_quo=(sum(bio_rest)/sum(bio_aa)), by=list(cell, xcoord, ycoord)),]
     y_origin <- 1200
-    DT <- DT[,.(biomass_cohort=sum(biomass_cohort)),by=list(species, cell, xcoord, ycoord,age)]
-    setkey(DT,species)
+    
+    
     DT <- DT["abiealba"]
     setkey(DT, age)
     DT <- DT[age>=60]

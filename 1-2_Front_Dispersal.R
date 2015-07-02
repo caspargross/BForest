@@ -62,7 +62,7 @@ initlist2 <- as.list( paste("Simulations/dis_front_aa_",  seq_along(maps_list),"
 outputlist<- as.list( paste("Data/Init_State/dis_front_alt",  seq_along(maps_list), "rep_", k,".csv", sep=""))
 
 mask <- raster(extent(maps_list[[1]]), resolution=res(maps_list[[1]]))
-mask[396400,] <- 1   ## Starting Front: 100m
+mask[396:400,] <- 1   ## Starting Front: 100m
 
 combine_input (initlist1,  
                initlist2, 
@@ -110,7 +110,7 @@ for (i in 1:length(output_files)) {
 
 
 #### Load Dispersal Model results
-list_results <- as.list (paste("Simulations/dis_1x100_5rep_3/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
+list_results <- as.list (paste("Simulations/dis_front_full_fast1rep_2/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
 dis_results <- lapply(list_results, fread)
 dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
 #ras_dis_results <- lapply(dis_results, function(x) out2rasterDT(x, var="species"))
@@ -118,7 +118,7 @@ dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list
 ## Plot Species Distribution
 for (i in 1:length(output_files)) {
   #png(filename=paste("Animate/dis_1x100_4_dec", i,".png", sep=""))
-  print(levelplot(out2rasterDT(output_files[[i]], var="species")))
+  print(levelplot(out2rasterDT(dis_results[[1]], var="species")))
   Sys.sleep(0.5)
   #dev.off()
 }
@@ -126,23 +126,22 @@ for (i in 1:length(output_files)) {
 
 ######### Create Plot of Established Distances (Age>60yr)
 
-for (k in 1:10) { 
-  
 dist_quartile<-data.table("Year"=0, "Elevation"=0, "Distance"=0, "Repetition"=0)
 elevations <- as.integer(list_alt[])
+for (k in 1:3) { 
+
+print(paste("Repetition", k))
 for (j in seq_along (maps_list)) {
-  
+distances <- list() 
 list_results <- as.list (paste("Simulations/dis_front_full_fast",j,"rep_",k,"/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
 dis_results <- lapply(list_results, fread)
 dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
 print(paste("Loaded map",j))
 
-distances <- list()
-
 for (i in 1:length(dis_results)) {
     DT<-dis_results[[i]]
     DT[,biomass_cohort:=biomass*stems]
-    y_origin <- 1200
+    y_origin <- 9950
     DT <- DT[,.(biomass_cohort=sum(biomass_cohort)),by=list(species, cell, xcoord, ycoord,age)]
     setkey(DT,species)
     DT <- DT["abiealba"]
@@ -162,10 +161,16 @@ for (i in 1:length(dis_results)) {
 
 dist_quartile <- dist_quartile[-1,]
 dist_quartile$Elevation <- as.factor(dist_quartile$Elevation)
+dist_means<- dist_quartile[,.(mean=mean(Distance, na.rm=T),sd=sd(Distance, na.rm=T)),by=.(Year, Elevation)]
+
 
 library(ggplot2)
 distplot <- ggplot(dist_quartile, aes(x=Year, y=Distance, group=Elevation, col = Elevation))
 distplot+geom_line()
+
+distplot2 <- ggplot(dist_quartile[Repetition==5,,], aes(x=Year, y=Distance, group=Elevation, col = Elevation))
+distplot2+geom_line()
+
 
 
 ######### Create Plot of Established Distances (Age>60yr)
@@ -183,7 +188,7 @@ for (j in seq_along (maps_list)) {
   for (i in 1:length(dis_results)) {
     DT<-dis_results[[i]]
     DT[,biomass_cohort:=biomass*stems]
-    y_origin <- 1200
+    y_origin <- 9950
     DT <- DT[,.(biomass_cohort=sum(biomass_cohort)),by=list(species, cell, xcoord, ycoord,age)]
     setkey(DT,species)
     DT <- DT["abiealba"]
@@ -199,14 +204,6 @@ for (j in seq_along (maps_list)) {
   }
   
 }
-
-dist_quartile <- dist_quartile[-1,]
-dist_quartile$Elevation <- as.factor(dist_quartile$Elevation)
-
-library(ggplot2)
-distplot <- ggplot(dist_quartile, aes(x=Year, y=Distance, group=Elevation, col = Elevation))
-distplot+geom_line()
-
 
 
 
