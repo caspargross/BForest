@@ -81,42 +81,48 @@ m10 <-(create_mask_p(10,20,2,1, mask, p=TRUE)) # 200x2
 m11 <-(create_mask_p(20,20,1,1, mask, p=TRUE)) # 400x1
 
 
-for (i in 1:11) {
-
+sink("Logs/log_dis_patch.txt")
+for (k in 1:11) {
+print(paste("Patch pattern no", k, "startedt at:", Sys.time()))
+  
 initlist1_p <- as.list( paste("Simulations/dis_patch_init_fs-pa_", seq_along(maps_list_p), "/Output/fullOut_50.csv", sep=""))
 initlist2_p <- as.list( paste("Simulations/dis_patch_init_aa_", seq_along(maps_list_p), "/Output/fullOut_50.csv", sep=""))
-outputlist_p<- as.list( paste("Data/Init_State/dis_patch_init_alt_", seq_along(maps_list_p),"_m", i, ".csv", sep=""))
+outputlist_p<- as.list( paste("Data/Init_State/dis_patch_init_alt_", seq_along(maps_list_p),"_m", k, ".csv", sep=""))
 
+print("Loading Files [OK]")
 
 combine_input (initlist1_p,  
                initlist2_p, 
                outputlist_p,
                1, 1, 2, 100,  
                extent(maps_list_p[[1]]),
-               ma=eval(as.name(paste("m",i, sep=""))))
+               ma=eval(as.name(paste("m",k, sep=""))))
 
-}
-
+print("Creating Input File  [OK]")
 ## Check Input Files
 
-input_files <- as.list(paste("Data/Init_State/dis_patch_init_alt_", 1:8,"_m11.csv", sep=""))
-input_files <- lapply(input_files, fread)
-input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
-levelplot(out2rasterDT(input_files[[4]], var="species"))
+#input_files <- as.list(paste("Data/Init_State/dis_patch_init_alt_", 1:8,"_m11.csv", sep=""))
+#input_files <- lapply(input_files, fread)
+#input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
+#levelplot(out2rasterDT(input_files[[4]], var="species"))
 
 ## Run Model with Dispersal
 
-for (j in 1:1){ 
-for (i in seq_along (maps_list)) { create_inputdir (paste("dis_patch_alt_", i,"_m",j, sep=""),
+for (i in seq_along (maps_list)) { create_inputdir (paste("dis_patch_alt_", i,"_m",k, sep=""),
                                                     climpath="Data/DWD/climate_feldberg.dat",
                                                     species=c("abiealba", "fagusilv", "piceabie"), ex=F,
                                                     LandClimRasterStack=maps_list_p[[i]],
-                                                    paste("Data/Init_State/dis_patch_init_alt_", i,"_m", j, ".csv", sep=""),
+                                                    paste("Data/Init_State/dis_patch_init_alt_", i,"_m", k, ".csv", sep=""),
                                                     ctlfile="Data/Landclim/ctl_bforest_dis_2000.xml",
                                                     landtypefile="Data/Landclim/landtype.xml") }
-
-mclapply(as.list(paste("dis_patch_alt_", seq_along(maps_list), "_m", j, sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
+print(paste("Created Input Directory for Pattern", k, "Elevation", i, "[OK]"))
+mclapply(as.list(paste("dis_patch_alt_", seq_along(maps_list), "_m", k, sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
+print(paste("Finished Model Calculation Pattern", k, "Elevation", i, "[OK]"))
 }
+print("SUCCESS!")
+sink()
+
+
 
 ## Check Dispersal Output files
 output_files <- as.list(paste("Simulations/dis_patch_alt_1_m1/Output/fullOut_", seq(5,200,5), ".csv", sep=""))
@@ -129,69 +135,76 @@ for (i in 1:length(output_files)) {
 }
 
 
-
-
-######### Create Plot of Established Distances (Age>60yr)
-stats_p <- data.table(mask=NA, year=NA, ratio_bio_aa=NA, mass_bio_aa=NA, n_cohorts=NA)
-for (j in seq_along (maps_list_p)) {
+######### Calculation of Output-Analysis 
+stats_p <- data.table(mask=NA, altitude=NA, year=NA, ratio_bio_aa=NA, mass_bio_aa=NA, n_cohorts=NA)  #Data.table with stats
+plot <- T
+for (m in 1:11) {
   
-  list_results_p <- as.list (paste("Simulations/dis_patch_alt_", j,"_m1/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
-  dis_results_p <- lapply(list_results_p, fread)
-  dis_results_p <- lapply(dis_results_p, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
-  print(paste("Loaded map",j))
+  for (j in seq_along (maps_list_p)) {  ## Different Alitudes!
   
- 
+    list_results_p <- as.list (paste("Simulations/dis_patch_alt_", j,"_m",m,"/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
+    dis_results_p <- lapply(list_results_p, fread)
+    dis_results_p <- lapply(dis_results_p, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
+    print(paste("Loaded map",j, "Patch Pattern no:", m))
+     
   
-  for (i in 1:length(dis_results)) {
-    PDT<-dis_results_p[[i]]
-    PDT[,bio_cohort:=biomass*stems]
-    PDT <- PDT[,.(bio_cohort=sum(bio_cohort), age=max(age)),by=list(species, cell, xcoord, ycoord)]
-    setkey(PDT,species)
-    PDT["abiealba", bio_aa:=bio_cohort, by=.(cell)]
-    PDT2 <- PDT[,.(bio_cell=sum(bio_cohort), bio_aa), by=.(xcoord, ycoord, cell)]
-    PDT2[is.na(PDT2)] = 0  # replace NA with 0
-    PDT2 <- PDT2[,.(bio_cell=mean(bio_cell), bio_aa=max(bio_aa), bio_quo=max((bio_aa/bio_cell)*100)), by=.(xcoord, ycoord, cell)]
+    for (i in 1:length(dis_results)) { ## Different Decades !
     
-    stats_p <- rbind(stats_p, list(NA, i*50, PDT2[,round((sum(bio_aa)/sum(bio_cell))*100,2)], PDT2[,sum(bio_aa),], nrow(PDT["abiealba", .(age=max(age)) , by="cell"][age>=70,,])))
-    print(paste("finished decade", i))
+      PDT<-dis_results_p[[i]]
+      PDT[,bio_cohort:=biomass*stems] #Calculate cohort biomas
+      PDT <- PDT[,.(bio_cohort=sum(bio_cohort), age=max(age)),by=list(species, cell, xcoord, ycoord)]
+      setkey(PDT,species)
+      PDT[,bio_aa:=as.double(NA),]  ## Create empty columnt (NA) in double type
+      PDT["abiealba", bio_aa:=bio_cohort, by=.(cell)]
+      PDT2 <- PDT[,.(bio_cell=sum(bio_cohort), bio_aa), by=.(xcoord, ycoord, cell)]
+      PDT2[is.na(PDT2)] = 0  # replace NA with 0
+      PDT2 <- PDT2[,.(bio_cell=mean(bio_cell), bio_aa=max(bio_aa), bio_quo=max((bio_aa/bio_cell)*100)), by=.(xcoord, ycoord, cell)]
+    
+      stats_p <- rbind(stats_p, list(m, list_alt_p[[j]], i*50, PDT2[,round((sum(bio_aa)/sum(bio_cell))*100,2)], PDT2[,sum(bio_aa),], nrow(PDT["abiealba", .(age=max(age)) , by="cell"][age>=70,,])))
+      print(paste("finished decade", i))
+    
+      if (plot == T) {
+        png(filename=paste("Animate/dis_patch_alt",j,"_m1_dec", i,".png", sep=""))
+        print(levelplot(out2rasterDT(PDT2, var="bio_aa")))
+        dev.off()
+      
+      }
+    }
   }
-}
+}    
     
-    DT["abiealba", bio_aa:=biomass_cohort, by=.(cell)]
-    
-    setkey(DT, cell)
-    DT
-    
-    DT[!"abiealba", bio_rest:=biomass_cohort, by=.(cell)]
-    DT[!"abiealba", bio_perc:=bio_rest/bio_aa, by=.(cell)]
-    
-    DT2<-DT[,.(biomass_cohort, age=max(age), bio_quo=(sum(bio_rest)/sum(bio_aa)), by=list(cell, xcoord, ycoord)),]
-    y_origin <- 1200
-    
-    
-    DT <- DT["abiealba"]
-    setkey(DT, age)
-    DT <- DT[age>=60]
-    DT[,dist:= abs(ycoord - y_origin),]
-    #hist(DT$dist)
-    distances[[i]]<-DT
-    png(paste("Animate/abiealba_est_alt", j, "dec", i, ".png", sep=""))
-    print(plot(extent(maps_list[[1]]), type="n", main=paste("Elevation:",list_alt[[j]],"Year:",i*50), xlab="Latitude", ylab="Longitude"))
-    print(plot(out2rasterDT(DT), add=T, legend=F, col="chartreuse4"))
-    dev.off()
-  }
-  
-}
+stats_p <- stats_p[-1,]
+stats_p$altitude <- as.factor(stats_p$altitude)
+stats_p$mask <- as.factor(stats_p$mask)
+write.table(stats_p, "Data/Results/results_patch_dispersal.txt", sep="\t", row.names=F)
 
-dist_quartile <- dist_quartile[-1,]
-dist_quartile$Elevation <- as.factor(dist_quartile$Elevation)
+stats_p[, max_ratio:=0.9*max(ratio_bio_aa), by=.(mask, altitude)]
+stats_p[, max_ratio:=0.9*max(ratio_bio_aa), by=.(mask, altitude)]
 
+result_patch <- stats_p[altitude!=1800,,]
 library(ggplot2)
-distplot <- ggplot(dist_quartile, aes(x=Year, y=Distance, group=Elevation, col = Elevation))
-distplot+geom_line()
+distplot <- ggplot(result_patch, aes(x=year, group=mask, col = mask)) + theme_bw()
+distplot+geom_line(aes(y=ratio_bio_aa)) + labs(title = "Mask 1", y="Biomass percentage Abies alba / Total") + facet_wrap(~ altitude, ncol=1)
+
+distplot+geom_line(aes(y=mass_bio_aa)) + labs(title = "Mask 1", y="Total biomass Abies alba")
+distplot+geom_line(aes(y=n_cohorts)) + labs(title = "Mask 1", y="Number of mature Abies alba cohorts")  ############## ADD NUMBER OF SINGLE TREES
 
 
 
+#create subset for logistic regression
+logtest <- result_patch[altitude==1200, , ]
+logtest <- logtest[mask==4,,]
+plot(log(logtest$ratio_bio_aa/100) ~ logtest$year)
+logfit <- lm(log(ratio_bio_aa/100) ~ year, data=logtest)
+abline(logfit)
 
+stats_p$altitude
+stats_p$year
+stats_p$ratio_bio_aa
 
+library(rgl)
+plot3d(stats_p$altitude,
+       stats_p$year,
+       stats_p$ratio_bio_aa,
+       col=stats_p$mask)
 
