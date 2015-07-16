@@ -82,7 +82,7 @@ m11 <-(create_mask_p(20,20,1,1, mask, p=TRUE)) # 400x1
 
 
 sink("Logs/log_dis_patch.txt")
-for (k in 1:11) {
+for (k in 1:1) {
 print(paste("Patch pattern no", k, "startedt at:", Sys.time()))
   
 initlist1_p <- as.list( paste("Simulations/dis_patch_init_fs-pa_", seq_along(maps_list_p), "/Output/fullOut_50.csv", sep=""))
@@ -138,7 +138,7 @@ for (i in 1:length(output_files)) {
 ######### Calculation of Output-Analysis 
 stats_p <- data.table(mask=NA, altitude=NA, year=NA, ratio_bio_aa=NA, mass_bio_aa=NA, n_cohorts=NA)  #Data.table with stats
 plot <- T
-for (m in 1:11) {
+for (m in 1:1) {
   
   for (j in seq_along (maps_list_p)) {  ## Different Alitudes!
   
@@ -178,17 +178,24 @@ stats_p$altitude <- as.factor(stats_p$altitude)
 stats_p$mask <- as.factor(stats_p$mask)
 write.table(stats_p, "Data/Results/results_patch_dispersal.txt", sep="\t", row.names=F)
 
-stats_p[, max_ratio:=0.9*max(ratio_bio_aa), by=.(mask, altitude)]
-stats_p[, max_ratio:=0.9*max(ratio_bio_aa), by=.(mask, altitude)]
+stats_p[, max_ratio:=0.7*max(ratio_bio_aa), by=.(mask, altitude)]
+
+
 
 result_patch <- stats_p[altitude!=1800,,]
+
+### Plot the biomass ratios
 library(ggplot2)
 distplot <- ggplot(result_patch, aes(x=year, group=mask, col = mask)) + theme_bw()
-distplot+geom_line(aes(y=ratio_bio_aa)) + labs(title = "Mask 1", y="Biomass percentage Abies alba / Total") + facet_wrap(~ altitude, ncol=1)
+distplot + geom_line(aes(y=ratio_bio_aa)) + labs(title = "Mask 1", y="Biomass percentage Abies alba / Total") + facet_wrap(~ altitude, ncol=1)
 
-distplot+geom_line(aes(y=mass_bio_aa)) + labs(title = "Mask 1", y="Total biomass Abies alba")
-distplot+geom_line(aes(y=n_cohorts)) + labs(title = "Mask 1", y="Number of mature Abies alba cohorts")  ############## ADD NUMBER OF SINGLE TREES
 
+### Plot the threshhold times
+th_time <- stats_p[ratio_bio_aa>=max_ratio, .(min(year)) , by=.(mask, altitude, max_ratio)]
+th_time <- th_time[altitude!=1800,,]
+
+timeplot <- ggplot(th_time, aes(x=V1, group=mask, col=mask)) + theme_bw()
+timeplot + geom_point(aes(y=max_ratio)) + facet_wrap(~ altitude, ncol=1)
 
 
 #create subset for logistic regression
