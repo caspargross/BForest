@@ -44,44 +44,63 @@ res_bg <- lapply(as.list(paste("Simulations/full_br", 0:5,"/Output/fullOut_50.cs
 res_bg <- lapply(res_bg, function(x) rev_ycoordsDT(x, extent(dem_bg)))
 
 
-sumbio_bg <- data.table(elevation=NA, species=NA, bio_sp=NA, rf_light=NA,  rf_moisture=NA, rf_degreeDay=NA, browsing=NA )  #Data.table with stats
 
+### Evaluate and plot Biomass
+sumbio_bg <- data.table(elevation=NA, species=NA, bio_sp=NA, browsing=NA )  #Data.table with stats
 for (i in 1:length(res_bg)) {
   BGDT <- res_bg[[i]]
   BGDT[,bio_cohort:=biomass*stems*4]
-  BGDT <- BGDT[, .(bio_sp=sum(bio_cohort), rf_light=min(light_rf),  rf_moisture=min(moisture_rf), rf_degreeDay=min(degreeDay_rf)), by=.(cell, elevation, species)]
-  BGDT <- BGDT[, .(bio_sp=sum(bio_sp), rf_light=mean(rf_light),  rf_moisture=mean(rf_moisture), rf_degreeDay=mean(rf_degreeDay)), by=.(elevation, species)]
+  BGDT <- BGDT[, .(bio_sp=sum(bio_cohort)), by=.(cell, elevation, species)]
+  BGDT <- BGDT[, .(bio_sp=sum(bio_sp)), by=.(elevation, species)]
   BGDT[,browsing:=(i-1)*0.1,]
   sumbio_bg <- rbind(sumbio_bg, BGDT)
 }
 
-sumbio_bg <- sumbio_bg[-1,,]
-sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 15), elevation), by=.(species, browsing)]
+sumbio_bg <- sumbio_bg[-1,,]   
+require(caTools) ## Calculate the Running Median
+sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 15), elevation), by=.(species, browsing)]  
 ## Start Plotting
-
 require(ggplot2)
-require(caTools)
 
-
+## Plot the Biomass Elevation Gradient
 bg_plot <- ggplot(sumbio_rm, aes(col=species))+ theme_bw()
 bg_plot + geom_line (aes(x=elevation, y=bio_sp)) + facet_wrap(~ browsing, ncol=1)
 
-sumbio<- sumbio_bg[,.(bio_sum=sum(bio_sp)), by=.(species, browsing)]
+## Plot Total Biomass ~ Browsing Intensity (Stacked Barplot)
+sumbio <- sumbio_bg[,.(bio_sum=sum(bio_sp)), by=.(species, browsing)]
+sumbio[,sp_sum:=sum(bio_sum), by=.(browsing)]
+sumbio[,bio_perc:=(bio_sum/sp_sum)*100]  # Scale up to Percentage
 setkey(sumbio, species)
-bg_plot <- ggplot(sumbio, aes(fill=species))+ theme_bw()
-bg_plot + geom_bar (aes(x=browsing, y=bio_sum), stat = "identity", position="stack")
+
+bg_plot <- ggplot(sumbio, aes(fill=species))+ theme_bw() +labs(x="Browsing Intensity", y="Percentage of Total Biomass", fill="Species")
+bg_plot + geom_bar (aes(x=as.factor(browsing), y=bio_perc), stat = "identity", position="stack")
 
 
+### Evaluate and plot Reduction Factors
 
-bg_bio_plot
+rf_bg<- data.table()
+for (i in 1:length(res_bg)) {
+  BGDT <- res_bg[[i]]
+  BGDT <- BGDT[, .(idx=seq.int(nrow(BGDT)), cell, species, elevation, slowGrowth, age, stems, biomass, bio_cohort=biomass*stems, rf_light=light_rf,  rf_moisture=moisture_rf, rf_degreeDay=degreeDay_rf),]
+  BGDT[,browsing:=(i-1)*0.1,]
+  #BGDT[, is_zero := sum(rf_light, rf_moisture, rf_degreeDay)==0, by=.(idx)]
+  BGDT[, lim_rf:=which(c(rf_light, rf_moisture, rf_degreeDay)==min(rf_light, rf_moisture, rf_degreeDay)), by=.(idx)]
+  rf_bg <- rbind(rf_bg, BGDT)
+}
 
-xy <- sumbio_bg[species=="larideci"]
-matplot(xy$elevation, xy$bio_sp, type="l")
+rf_bg_factor <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species,]
+rf_bg_factor <- rf_bg_factor[]
 
+## Plot the reduction factors
+rf_plot <- ggplot(rf_bg[browsing==0.0], aes(x=elevation, col=species, shape=species)) + theme_bw() + ylim(0, 1)+ labs(x="Elevation (m.a.s.l)",y="Reduction Factor", col="Species", shape="Species")
+#RF Light
+rf_plot + geom_point(aes( y=rf_light)) + ggtitle("Light")  # + geom_rug(aes(y=rf_light), alpha=0.4)
+#RF Moisture
+rf_plot + geom_point(aes( y=rf_moisture)) + ggtitle("Moisture")
+#RF DegreeDays
+rf_plot + geom_point(aes( y=rf_degreeDay)) + ggtitle("Temperature")
 
-a <- eleg$decade==50
-matplot(eleg$elevation[a], eleg[a,colnames(eleg) %in% species], type="l", lty=lty,
-plot_elevation_gradient(eleg, c("abiealba", "larideci"), 50)
+## Plot the limiting reduction factor
+rf_plot_lim <- ggplot(rf_bg, aes(x=elevation))
+rf_plot_lim + geom_point(aes(x=as.factor(elevation), y=lim_rf), stat="identity")                                                                                   
 
-
-eleg <
