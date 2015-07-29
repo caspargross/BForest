@@ -2,6 +2,20 @@
 ## Functions LandClim ##
 ########################
 
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+
+
+theme_cas <- function (base_size = 12, base_family = "") {
+  theme_grey(base_size = base_size, base_family = base_family) %+replace% 
+  theme(axis.text = element_text(size = rel(0.8)), axis.ticks = element_line(colour = "black"), 
+        legend.key = element_rect(colour = "grey80"),
+        panel.background = element_rect(fill = "white", colour = NA),
+        panel.border = element_rect(fill = NA, colour = "grey50"),
+        panel.grid.major = element_line(colour = "grey90", size = 0.2),
+        panel.grid.minor = element_line(colour = "grey98"),
+        strip.background = element_rect(colour = "grey50", size = 0.5))
+}
+
 run_landclim_model<-function(sim_name, ctl_file="ctl_bforest.xml", lcpath="/Data/Landclim/LandClim"){
   oldwd <- getwd()
   if (file.exists(paste("Simulations/",sim_name,"/Output",sep=""))) unlink(paste("Simulations/",sim_name,"/Output",sep=""), recursive=TRUE)

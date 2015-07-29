@@ -18,7 +18,7 @@ dem_bg <- raster(nrows=nr, ncols=nc, ex)
 projection(dem_bg) <- gk_projection
 dem_bg
 
-hmax <- 2000
+hmax <- 2200
 hmin <- 500
 gradient <- (hmax-hmin)/(nr*res)
 
@@ -58,13 +58,28 @@ for (i in 1:length(res_bg)) {
 
 sumbio_bg <- sumbio_bg[-1,,]   
 require(caTools) ## Calculate the Running Median
-sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 15), elevation), by=.(species, browsing)]  
+sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 9), elevation), by=.(species, browsing)]  
 ## Start Plotting
 require(ggplot2)
 
-## Plot the Biomass Elevation Gradient
-bg_plot <- ggplot(sumbio_rm, aes(col=species))+ theme_bw()
-bg_plot + geom_line (aes(x=elevation, y=bio_sp)) + facet_wrap(~ browsing, ncol=1)
+## Plot the Biomass Elevation Gradient (FULL)
+bg_ele_full<- ggplot(sumbio_rm, aes(col=species))+
+  theme_cas() +
+  geom_line (aes(x=elevation, y=bio_sp), size=1.0) +
+  facet_wrap(~ browsing, ncol=1) +
+  labs(x="Elevation in m.a.s.l", y="Percentage of Total Biomass", col="Species") +
+  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  
+bg_ele_full 
+
+
+## Plot the Biomass Elevation Gradient (ONE)
+bg_ele<- ggplot(sumbio_rm[browsing==0.0,,], aes(col=species))+
+  theme_cas() +
+  geom_line (aes(x=elevation, y=bio_sp), size=1.0) +
+  #facet_wrap(~ browsing, ncol=1) +
+  labs(x="Elevation in m.a.s.l", y="Percentage of Total Biomass", col="Species") +
+  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  
+bg_ele 
 
 ## Plot Total Biomass ~ Browsing Intensity (Stacked Barplot)
 sumbio <- sumbio_bg[,.(bio_sum=sum(bio_sp)), by=.(species, browsing)]
@@ -72,9 +87,9 @@ sumbio[,sp_sum:=sum(bio_sum), by=.(browsing)]
 sumbio[,bio_perc:=(bio_sum/sp_sum)*100]  # Scale up to Percentage
 setkey(sumbio, species)
 
-bg_plot <- ggplot(sumbio, aes(fill=species))+ theme_bw() +labs(x="Browsing Intensity", y="Percentage of Total Biomass", fill="Species")
-bg_plot + geom_bar (aes(x=as.factor(browsing), y=bio_perc), stat = "identity", position="stack")
-
+bg_plot <- ggplot(sumbio, aes(fill=species))+ theme_bw() +labs(x="Browsing Intensity", y="Percentage of Total Biomass", fill="Species") +
+geom_bar (aes(x=as.factor(browsing), y=bio_perc), stat = "identity", position="stack")
+bg_plot
 
 ### Evaluate and plot Reduction Factors
 
@@ -88,8 +103,14 @@ for (i in 1:length(res_bg)) {
   rf_bg <- rbind(rf_bg, BGDT)
 }
 
-rf_bg_factor <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species,]
-rf_bg_factor <- rf_bg_factor[]
+
+rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species),]
+setkey(rf_bg_f, elevation)
+rf_bg_f <- rf_bg_f[, .(count=summary(as.factor(lim_rf)), rf_type=rep(c("Light", "Moisture", "Temperature"), length(unique(elevation)))), by=.(elevation, species)]
+#rf_bg_f$count <- range01(rf_bg_f$count)
+rf_bg_f[,rm_count:=runmean(count, 10), by=.(rf_type, species)]  
+
+
 
 ## Plot the reduction factors
 rf_plot <- ggplot(rf_bg[browsing==0.0], aes(x=elevation, col=species, shape=species)) + theme_bw() + ylim(0, 1)+ labs(x="Elevation (m.a.s.l)",y="Reduction Factor", col="Species", shape="Species")
@@ -101,6 +122,40 @@ rf_plot + geom_point(aes( y=rf_moisture)) + ggtitle("Moisture")
 rf_plot + geom_point(aes( y=rf_degreeDay)) + ggtitle("Temperature")
 
 ## Plot the limiting reduction factor
-rf_plot_lim <- ggplot(rf_bg, aes(x=elevation))
-rf_plot_lim + geom_point(aes(x=as.factor(elevation), y=lim_rf), stat="identity")                                                                                   
+
+
+rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation,  colour=species, shape=species, group=interaction(species, rf_type))) +
+  theme_cas() +
+  #scale_colour_manual(values=cbbPalette) +
+  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  +
+  labs(y = "Occurence as limiting growth factor", colour="Species", shape="Species") +
+  scale_shape_manual(values=c(21,22,23,24)) +
+  geom_point(aes(y=count)) + 
+  geom_line(aes(y=rm_count, k=7), size=1.1) + 
+  facet_wrap(~rf_type, ncol=1)
+
+rf_plot_lim
+
+
+#### EXPORT THE IMAGES AS .pdf Files
+
+#Elevation Gradient FULL
+pdf(file ="Figures/2dgradient_full.pdf", width=10, height=10)
+print(bg_ele_full)
+dev.off()
+
+# Elevation Gradient (Browsing =0)
+pdf(file ="Figures/2dgradient.pdf", width=10, height=4)
+print(bg_ele)
+dev.off()
+
+# Histogramm Biomass
+pdf(file ="Figures/bg_plot.pdf", width=4, height=4)
+print(bg_plot)
+dev.off()
+
+# Reduction Factors Plot
+pdf(file ="Figures/rf_plot_lim.pdf", width=10, height=8)
+print(rf_plot_lim)
+dev.off()
 
