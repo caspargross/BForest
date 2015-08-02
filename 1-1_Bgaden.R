@@ -56,18 +56,32 @@ for (i in 1:length(res_bg)) {
   sumbio_bg <- rbind(sumbio_bg, BGDT)
 }
 
-sumbio_bg <- sumbio_bg[-1,,]   
+
+sumbio_bg <- sumbio_bg[-1,,]
+setkey(sumbio_bg, species)
 require(caTools) ## Calculate the Running Median
 sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 9), elevation), by=.(species, browsing)]  
 ## Start Plotting
 require(ggplot2)
+
+
+
+## Plot the Biomass Elevation Gradient (Stacked Areas)
+bg_ele_stack<- ggplot(sumbio_rm, aes(group=species, fill=species))+
+  theme_cas() +
+  geom_area (aes(x=elevation, y=bio_sp), position="stack") +
+  facet_wrap(~ browsing, ncol=1) +
+  labs(x="Elevation in m.a.s.l", y="Percentage of Total Biomass", col="Species") +
+  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  
+bg_ele_stack 
+
 
 ## Plot the Biomass Elevation Gradient (FULL)
 bg_ele_full<- ggplot(sumbio_rm, aes(col=species))+
   theme_cas() +
   geom_line (aes(x=elevation, y=bio_sp), size=1.0) +
   facet_wrap(~ browsing, ncol=1) +
-  labs(x="Elevation in m.a.s.l", y="Percentage of Total Biomass", col="Species") +
+  labs(x="Elevation in m.a.s.l", y="Biomass in t/ha", col="Species") +
   scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  
 bg_ele_full 
 
@@ -75,9 +89,10 @@ bg_ele_full
 ## Plot the Biomass Elevation Gradient (ONE)
 bg_ele<- ggplot(sumbio_rm[browsing==0.0,,], aes(col=species))+
   theme_cas() +
+  scale_color_brewer(palette="Set1")+
   geom_line (aes(x=elevation, y=bio_sp), size=1.0) +
   #facet_wrap(~ browsing, ncol=1) +
-  labs(x="Elevation in m.a.s.l", y="Percentage of Total Biomass", col="Species") +
+  labs(x="Elevation in m.a.s.l", y="Biomass in t/ha", col="Species") +
   scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  
 bg_ele 
 
@@ -88,6 +103,7 @@ sumbio[,bio_perc:=(bio_sum/sp_sum)*100]  # Scale up to Percentage
 setkey(sumbio, species)
 
 bg_plot <- ggplot(sumbio, aes(fill=species))+ theme_bw() +labs(x="Browsing Intensity", y="Percentage of Total Biomass", fill="Species") +
+scale_color_brewer(palette="Set1")+
 geom_bar (aes(x=as.factor(browsing), y=bio_perc), stat = "identity", position="stack")
 bg_plot
 
@@ -121,17 +137,18 @@ rf_plot + geom_point(aes( y=rf_moisture)) + ggtitle("Moisture")
 #RF DegreeDays
 rf_plot + geom_point(aes( y=rf_degreeDay)) + ggtitle("Temperature")
 
-## Plot the limiting reduction factor
+#### Plot the limiting reduction factor
 
 
 rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation,  colour=species, shape=species, group=interaction(species, rf_type))) +
   theme_cas() +
+  scale_color_brewer(palette="Set1")+
   #scale_colour_manual(values=cbbPalette) +
   scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  +
   labs(y = "Occurence as limiting growth factor", colour="Species", shape="Species") +
   scale_shape_manual(values=c(21,22,23,24)) +
   geom_point(aes(y=count)) + 
-  geom_line(aes(y=rm_count, k=7), size=1.1) + 
+  geom_line(aes(y=rm_count, k=7), size=0.8) + 
   facet_wrap(~rf_type, ncol=1)
 
 rf_plot_lim

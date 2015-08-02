@@ -177,12 +177,23 @@ stats_p <- stats_p[-1,]
 stats_p$altitude <- as.factor(stats_p$altitude)
 stats_p$mask <- as.factor(stats_p$mask)
 write.table(stats_p, "Data/Results/results_patch_dispersal.txt", sep="\t", row.names=F)
-
-stats_p[, max_ratio:=0.7*max(ratio_bio_aa), by=.(mask, altitude)]
-
+stats_p <- fread("Data/Results/results_patch_dispersal.txt")
 
 
-result_patch <- stats_p[altitude!=1800,,]
+## Calculate the year when biomass reaches 0.9 of total biomass
+## Calculate the year when biomass reaches 0.9 of total biomass
+th_time <- stats_p[, .(max_ratio=0.9*max(ratio_bio_aa), year, ratio_bio_aa ), by=.(mask, altitude)]
+th_time <- th_time[altitude!=1800,,]
+setkey(th_time, mask)
+th_time[,low_ratio:=shift(ratio_bio_aa, 1, type="lag")]
+th_time <- th_time[ratio_bio_aa>=max_ratio, .(th_year=min(year), year, upper_limit=(min(year)),  up_ratio=ratio_bio_aa, low_ratio) , by=.(mask, altitude, max_ratio)]
+th_time[, .( up_year=min(year), low_ratio=low_ratio[1], up_ratio=up_ratio[1], th_ratio=max_ratio[1]), by=.(mask, altitude)]
+th_time <- th_time[, .(low_year=min(year)-50, up_year=min(year), low_ratio=low_ratio[1], up_ratio=up_ratio[1], th_ratio=max_ratio[1]), by=.(mask, altitude)]
+
+th_time[,m:=((up_ratio-low_ratio)/50),]
+th_time[,x:=((th_ratio-low_ratio)/m),]
+th_time[,th_year:=round(low_year+x),]
+
 
 ### Plot the biomass ratios
 library(ggplot2)
@@ -191,11 +202,8 @@ distplot + geom_line(aes(y=ratio_bio_aa)) + labs(title = "Mask 1", y="Biomass pe
 
 
 ### Plot the threshhold times
-th_time <- stats_p[ratio_bio_aa>=max_ratio, .(min(year)) , by=.(mask, altitude, max_ratio)]
-th_time <- th_time[altitude!=1800,,]
-
-timeplot <- ggplot(th_time, aes(x=V1, group=mask, col=mask)) + theme_bw()
-timeplot + geom_point(aes(y=max_ratio)) + facet_wrap(~ altitude, ncol=1)
+timeplot <- ggplot(th_time, aes(x=th_year, group=mask, col=mask)) + theme_bw()
+timeplot + geom_point(aes(y=th_ratio)) + facet_wrap(~ altitude, ncol=1)
 
 
 #create subset for logistic regression
