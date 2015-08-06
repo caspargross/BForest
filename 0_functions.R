@@ -51,7 +51,7 @@ create_inputdir <- function (sim_name,
   write_species_xml(specieslist, file=paste(simdir,"/species.xml", sep=""))
   oldwd<-getwd()
   setwd(simdir)
-  write_LandClim_maps(LandClimRasterStack, nodata_value="-9999", lcResolution=25, ex=ex)
+  write_LandClim_maps(LandClimRasterStack, nodata_value="-9999", lcResolution=25, ex)
   setwd(oldwd)                  
 }
 

@@ -26,7 +26,7 @@ dis_landscape_p <- function (alt) {
 
 ### Create map list
 
-list_alt_p <- as.list (seq (400, 1800, 200))
+list_alt_p <- as.list (seq (400, 1600, 200))
 maps_list_p <- lapply (list_alt_p, dis_landscape_p)
 
 
@@ -53,10 +53,10 @@ mclapply(as.list(paste("dis_patch_init_aa_", seq_along(maps_list_p), sep="")), f
 
 
 ## Check Background World
-input_files <- as.list(paste("Simulations/dis_patch_init_fs-pa_", 1:8,"/Output/fullOut_50.csv", sep=""))
+input_files <- as.list(paste("Simulations/dis_patch_init_fs-pa_", seq_along(maps_list_p),"/Output/fullOut_50.csv", sep=""))
 input_files <- lapply(input_files, fread)
 input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
-levelplot(out2rasterDT(input_files[[1]], var="species"))
+levelplot(out2rasterDT(input_files[[3]], var="species"))
 
 
 
@@ -82,7 +82,7 @@ m11 <-(create_mask_p(20,20,1,1, mask, p=TRUE)) # 400x1
 
 
 sink("Logs/log_dis_patch.txt")
-for (k in 1:1) {
+for (k in 1:11) {
 print(paste("Patch pattern no", k, "startedt at:", Sys.time()))
   
 initlist1_p <- as.list( paste("Simulations/dis_patch_init_fs-pa_", seq_along(maps_list_p), "/Output/fullOut_50.csv", sep=""))
@@ -108,15 +108,15 @@ print("Creating Input File  [OK]")
 
 ## Run Model with Dispersal
 
-for (i in seq_along (maps_list)) { create_inputdir (paste("dis_patch_alt_", i,"_m",k, sep=""),
+for (i in seq_along (maps_list_p)) { create_inputdir (paste("dis_patch_alt_", i,"_m",k, sep=""),
                                                     climpath="Data/DWD/climate_feldberg.dat",
                                                     species=c("abiealba", "fagusilv", "piceabie"), ex=F,
                                                     LandClimRasterStack=maps_list_p[[i]],
                                                     paste("Data/Init_State/dis_patch_init_alt_", i,"_m", k, ".csv", sep=""),
-                                                    ctlfile="Data/Landclim/ctl_bforest_dis_2000.xml",
+                                                    ctlfile="Data/Landclim/ctl_bforest_dis_5000.xml",
                                                     landtypefile="Data/Landclim/landtype.xml") }
 print(paste("Created Input Directory for Pattern", k, "Elevation", i, "[OK]"))
-mclapply(as.list(paste("dis_patch_alt_", seq_along(maps_list), "_m", k, sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
+mclapply(as.list(paste("dis_patch_alt_", seq_along(maps_list), "_m", k, sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_5000.xml"), mc.cores=3)
 print(paste("Finished Model Calculation Pattern", k, "Elevation", i, "[OK]"))
 }
 print("SUCCESS!")
@@ -137,12 +137,13 @@ for (i in 1:length(output_files)) {
 
 ######### Calculation of Output-Analysis 
 stats_p <- data.table(mask=NA, altitude=NA, year=NA, ratio_bio_aa=NA, mass_bio_aa=NA, n_cohorts=NA)  #Data.table with stats
-plot <- T
-for (m in 1:1) {
+plot <- F
+myTheme <- rasterTheme(region=brewer.pal(9, "BuGn"))
+for (m in 1:11) {
   
   for (j in seq_along (maps_list_p)) {  ## Different Alitudes!
   
-    list_results_p <- as.list (paste("Simulations/dis_patch_alt_", j,"_m",m,"/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
+    list_results_p <- as.list (paste("Simulations/dis_patch_alt_", j,"_m",m,"/Output/fullOut_", seq(5, 500, 5), ".csv", sep=""))
     dis_results_p <- lapply(list_results_p, fread)
     dis_results_p <- lapply(dis_results_p, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
     print(paste("Loaded map",j, "Patch Pattern no:", m))
@@ -164,8 +165,8 @@ for (m in 1:1) {
       print(paste("finished decade", i))
     
       if (plot == T) {
-        png(filename=paste("Animate/dis_patch_alt",j,"_m1_dec", i,".png", sep=""))
-        print(levelplot(out2rasterDT(PDT2, var="bio_aa")))
+        png(filename=paste("Animate/Patch/dis_patch_alt",j,"_",m,"_dec", i,".png", sep=""))
+        print(levelplot(out2rasterDT(PDT2, var="bio_aa"), main=paste("Year", i*50, "Ele", j, "Mask", m ), par.settings=myTheme))
         dev.off()
       
       }
@@ -177,13 +178,16 @@ stats_p <- stats_p[-1,]
 stats_p$altitude <- as.factor(stats_p$altitude)
 stats_p$mask <- as.factor(stats_p$mask)
 write.table(stats_p, "Data/Results/results_patch_dispersal.txt", sep="\t", row.names=F)
-stats_p <- fread("Data/Results/results_patch_dispersal.txt")
-
+stats_p <- fread("Data/Results/results_patch_dispersal_old.txt")
+stats_p$altitude <- as.integer(stats_p$altitude)
+stats_p$mask <- as.integer(stats_p$mask)
+#stats_p <- stats_p[altitude!=1800,,]
+setkey(stats_p, altitude)
+setkey(stats_p, mask)
 
 ## Calculate the year when biomass reaches 0.9 of total biomass
 ## Calculate the year when biomass reaches 0.9 of total biomass
 th_time <- stats_p[, .(max_ratio=0.9*max(ratio_bio_aa), year, ratio_bio_aa ), by=.(mask, altitude)]
-th_time <- th_time[altitude!=1800,,]
 setkey(th_time, mask)
 th_time[,low_ratio:=shift(ratio_bio_aa, 1, type="lag")]
 th_time <- th_time[ratio_bio_aa>=max_ratio, .(th_year=min(year), year, upper_limit=(min(year)),  up_ratio=ratio_bio_aa, low_ratio) , by=.(mask, altitude, max_ratio)]
@@ -192,20 +196,31 @@ th_time <- th_time[, .(low_year=min(year)-50, up_year=min(year), low_ratio=low_r
 
 th_time[,m:=((up_ratio-low_ratio)/50),]
 th_time[,x:=((th_ratio-low_ratio)/m),]
-th_time[,th_year:=round(low_year+x),]
+th_time[,th_year:=round(low_year+x),]""
+th_time[,mean_year:=mean(th_year), by=.(altitude)]
 
 
 ### Plot the biomass ratios
 library(ggplot2)
-distplot <- ggplot(result_patch, aes(x=year, group=mask, col = mask)) + theme_bw()
-distplot + geom_line(aes(y=ratio_bio_aa)) + labs(title = "Mask 1", y="Biomass percentage Abies alba / Total") + facet_wrap(~ altitude, ncol=1)
-
+distplot <- ggplot(stats_p, aes(x=year, group=mask, col = as.factor(mask))) +
+  theme_cas() +
+  geom_line(aes(y=ratio_bio_aa)) +
+  labs( y="Biomass percentage Abies alba / Total", col="Mask") +
+  facet_wrap(~ altitude, ncol=1)
+distplot
 
 ### Plot the threshhold times
-timeplot <- ggplot(th_time, aes(x=th_year, group=mask, col=mask)) + theme_bw()
+timeplot <- ggplot(th_time, aes(x=th_year, group=mask, col= as.factor(mask))) + theme_bw()
 timeplot + geom_point(aes(y=th_ratio)) + facet_wrap(~ altitude, ncol=1)
 
+tp <- ggplot (th_time, aes(x=as.factor(mask))) +
+  theme_cas() +
+  geom_bar(aes(y=(th_year-mean_year)), stat="identity") +
+  geom_line(aes(y=(0), col="red")) +
+  coord_flip()+
+  facet_wrap(~ altitude, nrow=1)
 
+tp
 #create subset for logistic regression
 logtest <- result_patch[altitude==1200, , ]
 logtest <- logtest[mask==4,,]
@@ -222,4 +237,6 @@ plot3d(stats_p$altitude,
        stats_p$year,
        stats_p$ratio_bio_aa,
        col=stats_p$mask)
-
+### Check elevation gradients:
+ele_test <- fread("Simulations/dis_patch_alt_6_m4/Output/elevation_biomass_out.csv")
+plot_elevation_gradient(ele_test, species=c("abiealba, piceabie, fagusilv"))

@@ -6,7 +6,7 @@ library(ModellingTools)
 datapath <- paste(getwd(), "/Data/DWD/", sep="")
 
 ### DWD Climate Station Feldberg.
-dat <- read.table(paste(datapath, "/Data/DWD/produkt_monat_Monatswerte_19450101_20131231_01346.txt", sep=""), sep=";", dec=".", header=T)
+dat <- read.table("~/Bachelor_Thesis/BForest/Data/DWD/produkt_monat_Monatswerte_19450101_20131231_01346.txt", sep=";", dec=".", header=T)
 
 ### DWD Climate Station Wendelstein
 dat <- read.csv("~/Bachelor_Thesis/BForest/Data/DWD/produkt_monat_Monatswerte_19510101_20120920_05467.txt", sep=";")
@@ -63,18 +63,21 @@ clim <-clim[csamp,]
 ##### FOR FELDBERG
 row.names(clim) <- seq(nrow(clim))
 write.table(clim, paste(datapath,"clim_feldberg.txt", sep=""), sep=" ", dec=".", quote = FALSE, col.names=F,)
-
-#### Save Climate as .dat with header
-header <- readLines(paste(datapath, "climate_template.dat", sep=""))
+header <- readLines(paste(datapath, "climate_template_feldberg.dat", sep=""))
 header <- header[1:14]
-header[2] <- "48 #latitude; used for cacluating drought index in model bugmann#"  ## LATITUDE OF STATION
-header[3] <-   "1490 #meter a.s.l. #"            ## Altitude of Station
 writeLines(header, paste(datapath,"climate_feldberg.dat", sep=""))
 write.table(clim, paste(datapath,"climate_feldberg.dat", sep=""), append=T, row.names=T, col.names=F, quote=F)
+
 
 
 #### FOR WENDELSTEIN
 row.names(clim) <- seq(nrow(clim))
 write.table(clim, paste(datapath,"clim_wendelstein.txt", sep=""), sep=" ", dec=".", quote = FALSE, col.names=F,)
+header <- readLines(paste(datapath, "climate_template_wendelstein.dat", sep=""))
+header <- header[1:14]
+writeLines(header, paste(datapath,"climate_wendelstein.dat", sep=""))
+write.table(clim, paste(datapath,"climate_wendelstein.dat", sep=""), append=T, row.names=T, col.names=F, quote=F)
+
+
 
 

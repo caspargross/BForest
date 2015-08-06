@@ -175,7 +175,6 @@ distplot2+geom_line()
 
 ######### Create Plot of Established Distances (Age>60yr)
 
-
 for (j in seq_along (maps_list)) {
   
   list_results <- as.list (paste("Simulations/dis_1x100_",j,"/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))

@@ -126,7 +126,10 @@ rf_bg_f <- rf_bg_f[, .(count=summary(as.factor(lim_rf)), rf_type=rep(c("Light", 
 #rf_bg_f$count <- range01(rf_bg_f$count)
 rf_bg_f[,rm_count:=runmean(count, 10), by=.(rf_type, species)]  
 
-
+##
+# Multiply with number of stems
+# --> relative Importance 
+# Eventuell kleine Tannen rauslassen wenn zu unscharf!
 
 ## Plot the reduction factors
 rf_plot <- ggplot(rf_bg[browsing==0.0], aes(x=elevation, col=species, shape=species)) + theme_bw() + ylim(0, 1)+ labs(x="Elevation (m.a.s.l)",y="Reduction Factor", col="Species", shape="Species")
