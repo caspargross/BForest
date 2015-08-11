@@ -5,7 +5,7 @@
 create_LandClim_Maps <- function(dem, no_aspect=F) {
 require(raster)
 require(rgdal)
-#dem <- dem_gk
+#dem <- np_dem
 #ex <- aui
 if (no_aspect) {
   ### Without Slope
@@ -15,31 +15,33 @@ if (no_aspect) {
   aspect <- dem 
   aspect[] <- 1 } else { 
         slope <- terrain(dem, opt='slope', unit="degrees", overwrite = T) 
-        aspect <- terrain(dem, opt='aspect', unit="degrees", overwrite = T) 
+        aspect <- terrain(dem, opt='aspect', unit="degrees", overwrite = T)
   }
 
 
+
+
 ###  LandClim map "soil".
-soil <- raster(slope)
-soil[] <- 8
+soil <- slope
+soil[!is.na(soil[])] <- 8
 
 
 ###  LandClim map "landtype".
-landtype <- raster(slope)
-landtype[] <- 1  ### Make Normal Landtype.
+landtype <- slope
+landtype[!is.na(landtype[])] <- 1  ### Make Normal Landtype.
 
 
 ###  LandClim map "nitrogen".
-nitro <- raster(slope)
-nitro[] <- 1  ### Make "City" Landtype.
+nitro <- slope
+nitro[!is.na(nitro[])] <- 1  ### no influence, standard value.
 
 ### Create raster-stack
 maps <- stack(dem, slope, aspect, soil, landtype, nitro)
 names(maps) <- c("dem", "slope", "aspect", "soil", "landtype", "nitro")
-#plot(maps, main="Original Maps")
+plot(maps, main="Original Maps")
 
 ### Resample LancClimMaps
-if (all(res(maps)==c(25,25))) maps25 <- maps else maps25 <- resample_LandClim_maps(maps)
+maps25 <- resample_LandClim_maps(maps)
 #plot(maps25>0, main="Resampled Maps (25)")
 maps25
 }

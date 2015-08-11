@@ -61,22 +61,34 @@ combine_input (initlist1,
 
 ## Check Input Files
 
-  #input_files <- as.list(paste("Data/Init_State/dis_1x1_2x100_alt", 1:8,".csv", sep=""))
-  #input_files <- lapply(input_files, fread)
-  #input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
-  #levelplot(out2rasterDT(input_files[[1]], var="species"))
+#input_files <- as.list(paste("Data/Init_State/dis_1x1_2x100_alt", 1:8,".csv", sep=""))
+#input_files <- lapply(input_files, fread)
+#input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
+#levelplot(out2rasterDT(input_files[[1]], var="species"))
+
+
+
+
+for (k in 2:3) {   
   
+  ## Create Random Weather files
+  random_weather_bf(paste("Data/DWD/climate_feldberg_",k,".dat", sep=""))
   ## Run Model with Dispersal
   for (i in seq_along (maps_list)) { create_inputdir (paste("dis_front_full_fast", i, "rep_", k, sep=""),
-                                                      climpath="Data/DWD/climate_feldberg.dat",
+                                                      climpath=paste("Data/DWD/climate_feldberg_",k,".dat", sep=""),
                                                       species=c("abiealba", "fagusilv", "piceabie"), ex=F,
                                                       LandClimRasterStack=maps_list[[i]],
                                                       inputfile=paste("Data/Init_State/dis_front_alt_fast",  i, ".csv", sep=""),
                                                       ctlfile="Data/Landclim/ctl_bforest_dis_2000.xml",
-                                                      landtypefile="Data/Landclim/landtype.xml") }
+                                                      landtypefile="Data/Landclim/landtype.xml",
+                                                      clim_rename=T) }
   
-for (k in 1:2) { 
+}
+sink("Logs/log_dis_front.txt")
+for (k in 1:3) {
+  print(paste("REPETITION NO.", k))
   mclapply(as.list(paste("dis_front_full_fast", seq_along(maps_list), "rep_",k , sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bforest_dis_2000.xml"), mc.cores=3)
 }
-
+print("SUCCESS")
+sink()
 

@@ -79,5 +79,19 @@ writeLines(header, paste(datapath,"climate_wendelstein.dat", sep=""))
 write.table(clim, paste(datapath,"climate_wendelstein.dat", sep=""), append=T, row.names=T, col.names=F, quote=F)
 
 
+## Function to create random samples of weather (pseudo-random)
+random_weather_bf <- function (file, yr=5000, c=clim) {
+ 
+    csamp <- sample(1:nrow(c), yr, replace=T)
+    c <- c[csamp,]
+    row.names(c) <- seq(nrow(c))
+    write.table(c, "Data/DWD/clim_feldberg.txt", sep=" ", dec=".", quote = FALSE, col.names=F,)
+    header <- readLines("Data/DWD/climate_template_feldberg.dat")
+    header <- header[1:14]
+    writeLines(header, file)
+    write.table(c,  file, append=T, row.names=T, col.names=F, quote=F)
+  } 
+
+random_weather_bf 
 
 

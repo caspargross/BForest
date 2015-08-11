@@ -18,7 +18,7 @@ dem_bg <- raster(nrows=nr, ncols=nc, ex)
 projection(dem_bg) <- gk_projection
 dem_bg
 
-hmax <- 2200
+hmax <- 2000
 hmin <- 500
 gradient <- (hmax-hmin)/(nr*res)
 
@@ -58,21 +58,34 @@ for (i in 1:length(res_bg)) {
 
 
 sumbio_bg <- sumbio_bg[-1,,]
-setkey(sumbio_bg, species)
+setkey(sumbio_bg, elevation, species, browsing)
 require(caTools) ## Calculate the Running Median
-sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 9), elevation), by=.(species, browsing)]  
+sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 8), elevation), by=.(species, browsing)]  
 ## Start Plotting
 require(ggplot2)
 
 
+### Colour Palettes:
+cas_palette <- c("#E55934","#9BC53D", "#5BC0EB", "#FDE74C",   "#FA7921", "#0072B2", "#D55E00", "#CC79A7")
 
 ## Plot the Biomass Elevation Gradient (Stacked Areas)
-bg_ele_stack<- ggplot(sumbio_rm, aes(group=species, fill=species))+
+
+p.full <- data.table(expand.grid(elevation=unique(sumbio_rm$elevation), species=unique(sumbio_rm$species), browsing=unique(sumbio_rm$browsing)))
+setkey(p.full, elevation, species, browsing)
+setkey(sumbio_rm, elevation, species, browsing)
+
+area_bio<-merge(sumbio_rm, p.full, all.y=T)
+area_bio$bio_sp[is.na(area_bio$bio_sp)]<-0
+
+bg_ele_stack<- ggplot(area_bio, aes(group=species, fill=species))+
   theme_cas() +
   geom_area (aes(x=elevation, y=bio_sp), position="stack") +
+  geom_line(aes(x=elevation, y=bio_sp), colour="grey30", position = "stack") +
   facet_wrap(~ browsing, ncol=1) +
-  labs(x="Elevation in m.a.s.l", y="Percentage of Total Biomass", col="Species") +
-  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  
+  labs(x="Elevation in m.a.s.l", y="Total biomass in t/ha", fill="Species") +
+  scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br) +
+  scale_fill_manual(values=cas_palette)
+  
 bg_ele_stack 
 
 
@@ -82,7 +95,8 @@ bg_ele_full<- ggplot(sumbio_rm, aes(col=species))+
   geom_line (aes(x=elevation, y=bio_sp), size=1.0) +
   facet_wrap(~ browsing, ncol=1) +
   labs(x="Elevation in m.a.s.l", y="Biomass in t/ha", col="Species") +
-  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  
+  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)+
+  scale_colour_manual(values=cas_palette)
 bg_ele_full 
 
 
@@ -103,7 +117,7 @@ sumbio[,bio_perc:=(bio_sum/sp_sum)*100]  # Scale up to Percentage
 setkey(sumbio, species)
 
 bg_plot <- ggplot(sumbio, aes(fill=species))+ theme_bw() +labs(x="Browsing Intensity", y="Percentage of Total Biomass", fill="Species") +
-scale_color_brewer(palette="Set1")+
+scale_fill_manual(values=cas_palette)+
 geom_bar (aes(x=as.factor(browsing), y=bio_perc), stat = "identity", position="stack")
 bg_plot
 
@@ -120,10 +134,10 @@ for (i in 1:length(res_bg)) {
 }
 
 
-rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species),]
+rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species, stems),]
 setkey(rf_bg_f, elevation)
 rf_bg_f <- rf_bg_f[, .(count=summary(as.factor(lim_rf)), rf_type=rep(c("Light", "Moisture", "Temperature"), length(unique(elevation)))), by=.(elevation, species)]
-#rf_bg_f$count <- range01(rf_bg_f$count)
+rf_bg_f$count <- range01(rf_bg_f$count)
 rf_bg_f[,rm_count:=runmean(count, 10), by=.(rf_type, species)]  
 
 ##
@@ -143,16 +157,16 @@ rf_plot + geom_point(aes( y=rf_degreeDay)) + ggtitle("Temperature")
 #### Plot the limiting reduction factor
 
 
-rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation,  colour=species, shape=species, group=interaction(species, rf_type))) +
+rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species))) +
   theme_cas() +
   scale_color_brewer(palette="Set1")+
   #scale_colour_manual(values=cbbPalette) +
-  scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)  +
+  scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br)  +
   labs(y = "Occurence as limiting growth factor", colour="Species", shape="Species") +
   scale_shape_manual(values=c(21,22,23,24)) +
   geom_point(aes(y=count)) + 
   geom_line(aes(y=rm_count, k=7), size=0.8) + 
-  facet_wrap(~rf_type, ncol=1)
+  facet_wrap(~species, ncol=1)
 
 rf_plot_lim
 

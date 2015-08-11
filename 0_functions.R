@@ -36,11 +36,12 @@ create_inputdir <- function (sim_name,
                              LandClimRasterStack=maps25,
                              inputfile=F,
                              ctlfile="Data/Landclim/ctl_bforest.xml",
-                             landtypefile="Data/Landclim/landtype.xml"){
+                             landtypefile="Data/Landclim/landtype.xml",
+                             clim_rename=F){
   simdir<-paste("Simulations/",sim_name,"/Input" ,sep="")
   if (file.exists(simdir)) unlink(simdir, recursive=TRUE)
   dir.create(simdir, recursive=TRUE)
-  file.copy(climpath, simdir)
+  ifelse(clim_rename==T,  file.copy(climpath, paste(simdir,"/climate_feldberg.dat", sep="")), file.copy(climpath, simdir))
   file.copy(landtypefile, simdir)
   if (inputfile!=F) {
     file.copy(inputfile, paste(simdir,"/tree_init.csv", sep=""))

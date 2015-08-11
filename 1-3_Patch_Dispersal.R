@@ -1,4 +1,4 @@
-###########################
+ ###########################
 ## Dispersal Dynamics    ##
 ##   Patch Dispersal     ##
 ##     Area: Model BF    ##
@@ -125,9 +125,9 @@ sink()
 
 
 ## Check Dispersal Output files
-output_files <- as.list(paste("Simulations/dis_patch_alt_1_m1/Output/fullOut_", seq(5,200,5), ".csv", sep=""))
+output_files <- as.list(paste("Simulations/dis_patch_alt_1_m1/Output/fullOut_", seq(5,500,5), ".csv", sep=""))
 output_files <- lapply(output_files, fread)
-output_files <- lapply(output_files, function(x) rev_ycoordsDT(x,  aui_rev=extent(maps_list_p[[1]])))
+output_files <- mclapply(output_files, function(x) rev_ycoordsDT(x,  aui_rev=extent(maps_list_p[[1]])))
 for (i in 1:length(output_files)) {
   png(filename=paste("Animate/dis_patch_alt1_m1_dec", i,".png", sep=""))
   print(levelplot(out2rasterDT(output_files[[25]], var="species")))
@@ -145,11 +145,11 @@ for (m in 1:11) {
   
     list_results_p <- as.list (paste("Simulations/dis_patch_alt_", j,"_m",m,"/Output/fullOut_", seq(5, 500, 5), ".csv", sep=""))
     dis_results_p <- lapply(list_results_p, fread)
-    dis_results_p <- lapply(dis_results_p, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
+    dis_results_p <- mclapply(dis_results_p, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])),  mc.cores=3)
     print(paste("Loaded map",j, "Patch Pattern no:", m))
      
   
-    for (i in 1:length(dis_results)) { ## Different Decades !
+    for (i in 1:length(dis_results_p)) { ## Different Decades !
     
       PDT<-dis_results_p[[i]]
       PDT[,bio_cohort:=biomass*stems] #Calculate cohort biomas
@@ -177,8 +177,9 @@ for (m in 1:11) {
 stats_p <- stats_p[-1,]
 stats_p$altitude <- as.factor(stats_p$altitude)
 stats_p$mask <- as.factor(stats_p$mask)
-write.table(stats_p, "Data/Results/results_patch_dispersal.txt", sep="\t", row.names=F)
-stats_p <- fread("Data/Results/results_patch_dispersal_old.txt")
+save(stats_p, file="Data/Results/results_patch_dispersal.RData")
+#write.table(stats_p, "Data/Results/results_patch_dispersal.txt", sep="\t", row.names=F)
+#stats_p <- fread("Data/Results/results_patch_dispersal_old.txt")
 stats_p$altitude <- as.integer(stats_p$altitude)
 stats_p$mask <- as.integer(stats_p$mask)
 #stats_p <- stats_p[altitude!=1800,,]
@@ -196,7 +197,7 @@ th_time <- th_time[, .(low_year=min(year)-50, up_year=min(year), low_ratio=low_r
 
 th_time[,m:=((up_ratio-low_ratio)/50),]
 th_time[,x:=((th_ratio-low_ratio)/m),]
-th_time[,th_year:=round(low_year+x),]""
+th_time[,th_year:=round(low_year+x),]
 th_time[,mean_year:=mean(th_year), by=.(altitude)]
 
 
@@ -237,6 +238,7 @@ plot3d(stats_p$altitude,
        stats_p$year,
        stats_p$ratio_bio_aa,
        col=stats_p$mask)
+
 ### Check elevation gradients:
 ele_test <- fread("Simulations/dis_patch_alt_6_m4/Output/elevation_biomass_out.csv")
 plot_elevation_gradient(ele_test, species=c("abiealba, piceabie, fagusilv"))
