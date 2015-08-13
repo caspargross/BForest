@@ -7,6 +7,8 @@ library(ModellingTools)
 library(sp)
 library(rgdal)
 library(raster)
+library(caTools) ## Calculate the Running Median
+library(ggplot2)
 
 ## Create Gradient Model Landscape
 gk_projection<-CRS("+init=epsg:31468") # GK Zone 4 (Berchtesgaden)
@@ -29,23 +31,28 @@ plot(dem_bg)
 maps25_bg <- create_LandClim_Maps(dem_bg, no_aspect=T)
 
 ##  Create Full Model Input (without browsing)
-create_inputdir("full_br0", climpath="Data/DWD/climate_wendelstein.dat", ctlfile="Data/Landclim/ctl_bgaden.xml", species=c("abiealba", "piceabie", "larideci", "fagusilv"), LandClimRasterStack=maps25_bg)
-create_inputdir("full_br1", climpath="Data/DWD/climate_wendelstein.dat", ctlfile="Data/Landclim/ctl_bgaden.xml", species=c("abiealba", "piceabie", "larideci", "fagusilv"), LandClimRasterStack=maps25_bg)
-create_inputdir("full_br2", climpath="Data/DWD/climate_wendelstein.dat", ctlfile="Data/Landclim/ctl_bgaden.xml", species=c("abiealba", "piceabie", "larideci", "fagusilv"), LandClimRasterStack=maps25_bg)
-create_inputdir("full_br3", climpath="Data/DWD/climate_wendelstein.dat", ctlfile="Data/Landclim/ctl_bgaden.xml", species=c("abiealba", "piceabie", "larideci", "fagusilv"), LandClimRasterStack=maps25_bg)
-create_inputdir("full_br4", climpath="Data/DWD/climate_wendelstein.dat", ctlfile="Data/Landclim/ctl_bgaden.xml", species=c("abiealba", "piceabie", "larideci", "fagusilv"), LandClimRasterStack=maps25_bg)
-create_inputdir("full_br5", climpath="Data/DWD/climate_wendelstein.dat", ctlfile="Data/Landclim/ctl_bgaden.xml", species=c("abiealba", "piceabie", "larideci", "fagusilv"), LandClimRasterStack=maps25_bg)
 
-mclapply(as.list(paste("full_br", 0:5, sep="")), function(x) run_landclim_model(x, ctl_file="ctl_bgaden.xml"), mc.cores=3)
+bg_list <- as.list(paste("full_br", 0:10, sep=""))
+
+lapply(bg_list, function (X) create_inputdir(X, 
+                                            climpath="Data/DWD/climate_wendelstein.dat", 
+                                            ctlfile="Data/Landclim/ctl_bgaden.xml", 
+                                            species=c("abiealba", "piceabie", "larideci", "fagusilv"), 
+                                            LandClimRasterStack=maps25_bg))
+
+
+mclapply(bg_list, function(x) run_landclim_model(x, ctl_file="ctl_bgaden.xml"), mc.cores=3)
+
 
 
 ### Load Output of Full Mode
-res_bg <- lapply(as.list(paste("Simulations/full_br", 0:5,"/Output/fullOut_50.csv", sep="")), fread)
+res_bg <- lapply(as.list(paste("Simulations/full_br", 0:10,"/Output/fullOut_50.csv", sep="")), fread)
 res_bg <- lapply(res_bg, function(x) rev_ycoordsDT(x, extent(dem_bg)))
 
 
 
-### Evaluate and plot Biomass
+### Analyse Biomass
+
 sumbio_bg <- data.table(elevation=NA, species=NA, bio_sp=NA, browsing=NA )  #Data.table with stats
 for (i in 1:length(res_bg)) {
   BGDT <- res_bg[[i]]
@@ -56,31 +63,28 @@ for (i in 1:length(res_bg)) {
   sumbio_bg <- rbind(sumbio_bg, BGDT)
 }
 
-
-sumbio_bg <- sumbio_bg[-1,,]
+sumbio_bg <- sumbio_bg[-1,,]  # Delete first (empty) line
 setkey(sumbio_bg, elevation, species, browsing)
-require(caTools) ## Calculate the Running Median
-sumbio_rm <- sumbio_bg[, .(bio_sp=runmean(bio_sp, 8), elevation), by=.(species, browsing)]  
-## Start Plotting
-require(ggplot2)
 
-
-### Colour Palettes:
-cas_palette <- c("#E55934","#9BC53D", "#5BC0EB", "#FDE74C",   "#FA7921", "#0072B2", "#D55E00", "#CC79A7")
-
-## Plot the Biomass Elevation Gradient (Stacked Areas)
-
+sumbio_rm <- sumbio_bg
 p.full <- data.table(expand.grid(elevation=unique(sumbio_rm$elevation), species=unique(sumbio_rm$species), browsing=unique(sumbio_rm$browsing)))
 setkey(p.full, elevation, species, browsing)
 setkey(sumbio_rm, elevation, species, browsing)
+sumbio_rm <- merge(sumbio_rm, p.full, all.y=T)
+sumbio_rm$bio_sp[is.na(sumbio_rm$bio_sp)]<-0
+sumbio_rm[,bio_rm:=runmean(bio_sp,5), by=.(species,browsing)]
 
-area_bio<-merge(sumbio_rm, p.full, all.y=T)
-area_bio$bio_sp[is.na(area_bio$bio_sp)]<-0
+## Plotting ##
+##############
 
-bg_ele_stack<- ggplot(area_bio, aes(group=species, fill=species))+
+# Colour Palettes:
+cas_palette <- c("#E55934","#9BC53D", "#5BC0EB", "#FDE74C",   "#FA7921", "#0072B2", "#D55E00", "#CC79A7")
+
+## Plot the Biomass Elevation Gradient (Stacked Areas)
+bg_ele_stack<- ggplot(sumbio_rm, aes(group=species, fill=species))+
   theme_cas() +
-  geom_area (aes(x=elevation, y=bio_sp), position="stack") +
-  geom_line(aes(x=elevation, y=bio_sp), colour="grey30", position = "stack") +
+  geom_area(aes(x=elevation, y=bio_rm), position="stack") +
+  geom_line(aes(x=elevation, y=bio_rm), colour="grey30", position = "stack") +
   facet_wrap(~ browsing, ncol=1) +
   labs(x="Elevation in m.a.s.l", y="Total biomass in t/ha", fill="Species") +
   scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br) +
@@ -92,7 +96,7 @@ bg_ele_stack
 ## Plot the Biomass Elevation Gradient (FULL)
 bg_ele_full<- ggplot(sumbio_rm, aes(col=species))+
   theme_cas() +
-  geom_line (aes(x=elevation, y=bio_sp), size=1.0) +
+  geom_line (aes(x=elevation, y=bio_rm), size=1.0) +
   facet_wrap(~ browsing, ncol=1) +
   labs(x="Elevation in m.a.s.l", y="Biomass in t/ha", col="Species") +
   scale_x_continuous("Elevation in m.a.s.l", breaks=br, labels=br)+
@@ -137,8 +141,9 @@ for (i in 1:length(res_bg)) {
 rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species, stems),]
 setkey(rf_bg_f, elevation)
 rf_bg_f <- rf_bg_f[, .(count=summary(as.factor(lim_rf)), rf_type=rep(c("Light", "Moisture", "Temperature"), length(unique(elevation)))), by=.(elevation, species)]
-rf_bg_f$count <- range01(rf_bg_f$count)
-rf_bg_f[,rm_count:=runmean(count, 10), by=.(rf_type, species)]  
+rf_bg_f[, count01:=count/(sum(count)), by=.(elevation, species)]
+#rf_bg_f$count <- range01(rf_bg_f$count)
+rf_bg_f[,rm_count01:=runmean(count01, 10), by=.(rf_type, species)]  
 
 ##
 # Multiply with number of stems
@@ -152,7 +157,7 @@ rf_plot + geom_point(aes( y=rf_light)) + ggtitle("Light")  # + geom_rug(aes(y=rf
 #RF Moisture
 rf_plot + geom_point(aes( y=rf_moisture)) + ggtitle("Moisture")
 #RF DegreeDays
-rf_plot + geom_point(aes( y=rf_degreeDay)) + ggtitle("Temperature")
+rf_plot + geom_point(aes( y=rf_degreeDay)) + ggtitle("degreeDay")
 
 #### Plot the limiting reduction factor
 
@@ -164,8 +169,8 @@ rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation,  colour=rf_type, shape=rf_type, 
   scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br)  +
   labs(y = "Occurence as limiting growth factor", colour="Species", shape="Species") +
   scale_shape_manual(values=c(21,22,23,24)) +
-  geom_point(aes(y=count)) + 
-  geom_line(aes(y=rm_count, k=7), size=0.8) + 
+  geom_point(aes(y=count01)) + 
+  geom_line(aes(y=rm_count01, k=7), size=0.8) + 
   facet_wrap(~species, ncol=1)
 
 rf_plot_lim

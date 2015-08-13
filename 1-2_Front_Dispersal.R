@@ -83,7 +83,7 @@ dis_landscape <- function (alt) {
   
   
   
-  for (k in 2:3) {   
+  for (k in 1:3) {   
     
     ## Create Random Weather files
     random_weather_bf(paste("Data/DWD/climate_feldberg_",k,".dat", sep=""))
@@ -123,9 +123,9 @@ for (i in 1:length(output_files)) {
 
 
 
-
+d
 #### Load Dispersal Model results
-list_results <- as.list (paste("Simulations/dis_front_full_fast1rep_2/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
+list_results <- as.list (paste("Simulations/dis_front_full_fast4rep_2/Output/fullOut_", seq(5, 200, 5), ".csv", sep=""))
 dis_results <- lapply(list_results, fread)
 dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
 #ras_dis_results <- lapply(dis_results, function(x) out2rasterDT(x, var="species"))
@@ -133,13 +133,19 @@ dis_results <- lapply(dis_results, function(x) rev_ycoordsDT(x, extent(maps_list
 ## Plot Species Distribution
 for (i in 1:length(output_files)) {
   #png(filename=paste("Animate/dis_1x100_4_dec", i,".png", sep=""))
-  print(levelplot(out2rasterDT(dis_results[[1]], var="species")))
+  print(levelplot(out2rasterDT(dis_results[[30]], var="species")))
   Sys.sleep(0.5)
   #dev.off()
 }
 
-
-######### Create Plot of Established Distances (Age>60yr)
+  
+  ####TEST STUFF
+  TT <- dis_results[[20]]
+  TT <- TT[species == "abiealba",.(row_bio=sum(biomass*stems)), by=row]
+  quantile(TT$row)
+  plot(TT$row, TT$row_bio, type="l")
+  
+  ######### Create Plot of Established Distances (Age>60yr)
 
 dist_quartile<-data.table("Year"=0, "Elevation"=0, "Distance"=0, "Repetition"=0)
 elevations <- as.integer(list_alt[])
@@ -176,13 +182,22 @@ for (i in 1:length(dis_results)) {
 
 dist_quartile <- dist_quartile[-1,]
 dist_quartile$Elevation <- as.factor(dist_quartile$Elevation)
-dist_means<- dist_quartile[,.(mean=mean(Distance, na.rm=T),sd=sd(Distance, na.rm=T)),by=.(Year, Elevation)]
-
+dist_means <- dist_quartile[,.(mean=mean(Distance, na.rm=T),sd=sd(Distance, na.rm=T)),by=.(Year, Elevation)]
+dist_means[, dmean:=(mean-shift(mean, type="lag")), by=.(Elevation)]
 
 library(ggplot2)
-distplot <- ggplot(dist_quartile, aes(x=Year, y=Distance, group=Elevation, col = Elevation))
-distplot+geom_line()
+distplot <- ggplot(dist_means, aes(x=Year, group=Elevation, col = Elevation))+
+geom_line(aes(y=mean)) +
+theme_cas() 
+distplot
 
+
+ddistplot <- ggplot(dist_means, aes(x=Year, group=Elevation, col = Elevation))+
+    geom_line (aes(y=dmean )) +
+    theme_cas() 
+ddistplot
+  
+  
 distplot2 <- ggplot(dist_quartile[Repetition==5,,], aes(x=Year, y=Distance, group=Elevation, col = Elevation))
 distplot2+geom_line()
 
@@ -227,5 +242,5 @@ for (j in seq_along (maps_list)) {
  plt_front <- as.list(paste("Simulations/dis_front_full_fast", gr[,1], "rep_2/Output/fullOut_", gr[,2], ".csv" ,sep=""))
  plt_front <- lapply(plt_front, fread)
  plt_front <- lapply(plt_front, function(x) rev_ycoordsDT(x, extent(maps_list[[1]])))
- levelplot(out2rasterDT(plt_front[[12]]))
+ levelplot(out2rasterDT(plt_front[[2]]))
 plt_front[[12]]
