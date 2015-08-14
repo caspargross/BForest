@@ -243,7 +243,7 @@ biomass_dt <- function (file) {
 
 ## Apply mask to raster!
 mask_apply <- function (x, y, mask=mask1) {
-  cell_mask<-rowColFromCell(mask, which(mask[]==1))
+  cell_mask<-rowColFromCell(mask, which(mask[]==1))-1
   out1 <- x[-which(paste(x$row, x$col) %in% paste(cell_mask[,"row"], cell_mask[,"col"])),]
   out1 <- rbind(out1, y[which(paste(y$row, y$col) %in% paste(cell_mask[,"row"], cell_mask[,"col"])),])
   out1 <- out1[order(out1$row, out1$col, -out1$age),] #Reorder data.frame

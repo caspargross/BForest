@@ -46,7 +46,7 @@ mclapply(bg_list, function(x) run_landclim_model(x, ctl_file="ctl_bgaden.xml"), 
 
 
 ### Load Output of Full Mode
-res_bg <- lapply(as.list(paste("Simulations/full_br", 0:10,"/Output/fullOut_50.csv", sep="")), fread)
+res_bg <- lapply(as.list(paste("Simulations/full_br", 0:5,"/Output/fullOut_50.csv", sep="")), fread)
 res_bg <- lapply(res_bg, function(x) rev_ycoordsDT(x, extent(dem_bg)))
 
 
@@ -79,6 +79,7 @@ sumbio_rm[,bio_rm:=runmean(bio_sp,5), by=.(species,browsing)]
 
 # Colour Palettes:
 cas_palette <- c("#E55934","#9BC53D", "#5BC0EB", "#FDE74C",   "#FA7921", "#0072B2", "#D55E00", "#CC79A7")
+cas_palette2 <- 
 
 ## Plot the Biomass Elevation Gradient (Stacked Areas)
 bg_ele_stack<- ggplot(sumbio_rm, aes(group=species, fill=species))+
@@ -138,42 +139,40 @@ for (i in 1:length(res_bg)) {
 }
 
 
-rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species, stems),]
+rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species, stems),] #convert limits to factor
 setkey(rf_bg_f, elevation)
-rf_bg_f <- rf_bg_f[, .(count=summary(as.factor(lim_rf)), rf_type=rep(c("Light", "Moisture", "Temperature"), length(unique(elevation)))), by=.(elevation, species)]
+# Dirty Hack to get count of reduction factors
+stemtable <- rf_bg_f[, .(stemsum=sum(stems)), by=.(elevation, lim_rf, species)]
+names(stemtable)[names(stemtable)[]=="lim_rf"] <- "rf_type"
+rf_bg_f <- rf_bg_f[,.(count=summary(lim_rf), rf_type=rep(c("Light", "Moisture", "Temperature"))), by=.(elevation, species)]
+# Merge tables
+rf_bg_f <- merge(stemtable, rf_bg_f, by=c("species", "elevation", "rf_type" ), all.y=T)
+rf_bg_f[is.na(stemsum), stemsum:=0, ]
+rf_bg_f[, stemcount:=count*stemsum]
+#Normalize
 rf_bg_f[, count01:=count/(sum(count)), by=.(elevation, species)]
-#rf_bg_f$count <- range01(rf_bg_f$count)
+rf_bg_f[, stemcount01:=stemcount/(sum(stemcount)), by=.(elevation, species)]
+#Calculate Running Mean
 rf_bg_f[,rm_count01:=runmean(count01, 10), by=.(rf_type, species)]  
-
-##
-# Multiply with number of stems
-# --> relative Importance 
-# Eventuell kleine Tannen rauslassen wenn zu unscharf!
-
-## Plot the reduction factors
-rf_plot <- ggplot(rf_bg[browsing==0.0], aes(x=elevation, col=species, shape=species)) + theme_bw() + ylim(0, 1)+ labs(x="Elevation (m.a.s.l)",y="Reduction Factor", col="Species", shape="Species")
-#RF Light
-rf_plot + geom_point(aes( y=rf_light)) + ggtitle("Light")  # + geom_rug(aes(y=rf_light), alpha=0.4)
-#RF Moisture
-rf_plot + geom_point(aes( y=rf_moisture)) + ggtitle("Moisture")
-#RF DegreeDays
-rf_plot + geom_point(aes( y=rf_degreeDay)) + ggtitle("degreeDay")
-
+rf_bg_f[,rm_stemcount01:=runmean(stemcount01, 10), by=.(rf_type, species)]  
+rf_bg_f[,sum_stemsum:=sum(stemsum), by=.(elevation, species)]
+rf_bg_f[,sum_stemsum01:=range01(stemsum), by=.(species)]
 #### Plot the limiting reduction factor
 
 
-rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species))) +
+rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation)) +
   theme_cas() +
-  scale_color_brewer(palette="Set1")+
-  #scale_colour_manual(values=cbbPalette) +
+  scale_colour_manual(values=cas_palette2) +
   scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br)  +
   labs(y = "Occurence as limiting growth factor", colour="Species", shape="Species") +
   scale_shape_manual(values=c(21,22,23,24)) +
-  geom_point(aes(y=count01)) + 
-  geom_line(aes(y=rm_count01, k=7), size=0.8) + 
+  geom_point(aes(y=count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species))) + 
+  geom_line(aes(y=rm_count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species)), size=0.8) +
   facet_wrap(~species, ncol=1)
 
 rf_plot_lim
+
+
 
 
 #### EXPORT THE IMAGES AS .pdf Files
