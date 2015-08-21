@@ -1,4 +1,4 @@
- ###########################
+###########################
 ## Dispersal Dynamics    ##
 ##   Patch Dispersal     ##
 ##     Area: Model BF    ##
@@ -9,7 +9,7 @@ library(ModellingTools)
 library(sp)
 library(rgdal)
 library(raster)
-
+library(classInt)  #nicer plot colour gradients
 
 dis_landscape_p <- function (alt) {
   ## Flat Gradient Model Landscape
@@ -175,70 +175,63 @@ for (m in 1:11) {
 }    
     
 stats_p <- stats_p[-1,]
-stats_p$altitude <- as.factor(stats_p$altitude)
-stats_p$mask <- as.factor(stats_p$mask)
 save(stats_p, file="Data/Results/results_patch_dispersal.RData")
+load("Data/Results/results_patch_dispersal.RData")
 #write.table(stats_p, "Data/Results/results_patch_dispersal.txt", sep="\t", row.names=F)
 #stats_p <- fread("Data/Results/results_patch_dispersal_old.txt")
-stats_p$altitude <- as.integer(stats_p$altitude)
+#save(stats_p, file="Data/Results/patch_disp.RData")
+setnames(stats_p, "altitude", "elevation")
 stats_p$mask <- as.integer(stats_p$mask)
+stats_p$elevation <- as.integer(stats_p$elevation)
+stats_p$elevation <- seq(400, 1600, 200)[stats_p$elevation]
 #stats_p <- stats_p[altitude!=1800,,]
-setkey(stats_p, altitude)
-setkey(stats_p, mask)
+setkey(stats_p, mask, elevation)
 
-## Calculate the year when biomass reaches 0.9 of total biomass
-## Calculate the year when biomass reaches 0.9 of total biomass
-th_time <- stats_p[, .(max_ratio=0.9*max(ratio_bio_aa), year, ratio_bio_aa ), by=.(mask, altitude)]
+## Make Running mean for Elevation 400,
+stats_p[, ele_factor:=factor(stats_p$elevation, levels=c("1600", "1400", "1200", "1000", "800", "600", "400")), ] ## Reverse Levels for plot order
+stats_p[elevation==400, ratio_bio_aa_org:=ratio_bio_aa, ]
+stats_p[elevation==400, ratio_bio_aa:=runmean(ratio_bio_aa, 4), by=.(mask)]
+stats_p[, th:=0.75*max(ratio_bio_aa), by=.(elevation)]
+
+
+## Calculate the year when biomass reaches 0.75 of total biomass
+th_time <- stats_p[, .(max_ratio=(0.75*max(ratio_bio_aa)), year, ratio_bio_aa, mask ), by=.(elevation)]
 setkey(th_time, mask)
 th_time[,low_ratio:=shift(ratio_bio_aa, 1, type="lag")]
-th_time <- th_time[ratio_bio_aa>=max_ratio, .(th_year=min(year), year, upper_limit=(min(year)),  up_ratio=ratio_bio_aa, low_ratio) , by=.(mask, altitude, max_ratio)]
-th_time[, .( up_year=min(year), low_ratio=low_ratio[1], up_ratio=up_ratio[1], th_ratio=max_ratio[1]), by=.(mask, altitude)]
-th_time <- th_time[, .(low_year=min(year)-50, up_year=min(year), low_ratio=low_ratio[1], up_ratio=up_ratio[1], th_ratio=max_ratio[1]), by=.(mask, altitude)]
+th_time <- th_time[ratio_bio_aa>=max_ratio, .(th_year=min(year), year, upper_limit=(min(year)),  up_ratio=ratio_bio_aa, low_ratio) , by=.(mask, elevation, max_ratio)]
+th_time[, .( up_year=min(year), low_ratio=low_ratio[1], up_ratio=up_ratio[1], th_ratio=max_ratio[1]), by=.(mask, elevation)]
+th_time <- th_time[, .(low_year=min(year)-50, up_year=min(year), low_ratio=low_ratio[1], up_ratio=up_ratio[1], th_ratio=max_ratio[1]), by=.(mask, elevation)]
 
 th_time[,m:=((up_ratio-low_ratio)/50),]
 th_time[,x:=((th_ratio-low_ratio)/m),]
 th_time[,th_year:=round(low_year+x),]
-th_time[,mean_year:=mean(th_year), by=.(altitude)]
-
+th_time[,mean_year:=mean(th_year), by=.(elevation)]
+th_time[,th_year01:=range01(th_year),]
+th_time[, ele_factor:=factor(th_time$elevation, levels=c("1600", "1400", "1200", "1000", "800", "600", "400")), ]
+th_time
 
 ### Plot the biomass ratios
 library(ggplot2)
 distplot <- ggplot(stats_p, aes(x=year, group=mask, col = as.factor(mask))) +
   theme_cas() +
+  geom_hline(aes(yintercept=th), col="grey20", lty=2, show_guide = TRUE)+
   geom_line(aes(y=ratio_bio_aa)) +
-  labs( y="Biomass percentage Abies alba / Total", col="Mask") +
-  facet_wrap(~ altitude, ncol=1)
+  geom_rug(mapping=aes(x=th_year, group=mask), data=th_time, sides="t", size=1)+
+  labs( y="Biomass percentage Abies alba / Total", x="Year", col="Mask") + 
+  facet_grid(ele_factor ~ .) 
 distplot
 
-### Plot the threshhold times
-timeplot <- ggplot(th_time, aes(x=th_year, group=mask, col= as.factor(mask))) + theme_bw()
-timeplot + geom_point(aes(y=th_ratio)) + facet_wrap(~ altitude, ncol=1)
 
-tp <- ggplot (th_time, aes(x=as.factor(mask))) +
-  theme_cas() +
-  geom_bar(aes(y=(th_year-mean_year)), stat="identity") +
-  geom_line(aes(y=(0), col="red")) +
-  coord_flip()+
-  facet_wrap(~ altitude, nrow=1)
+## PLot Heatmap
+# create colour breaks based on bclust 
+brks <- classIntervals(th_time$th_year, 10)
+cas_palette <- colorRampPalette(c("darkgreen", "palegreen", "white"))
+hm <- ggplot (th_time, aes(x=as.factor(mask), y=as.factor(elevation))) +
+  geom_tile(aes(fill=th_year), colour="grey80") +
+  coord_fixed()+
+  theme_cas()+
+  scale_fill_gradientn(colours=cas_palette(10), breaks=round(brks$brks)) +
+  labs( y="Initial configuration mask", x="Elevation in m a.s.l.", fill="Threshold \n year")
+hm
 
-tp
-#create subset for logistic regression
-logtest <- result_patch[altitude==1200, , ]
-logtest <- logtest[mask==4,,]
-plot(log(logtest$ratio_bio_aa/100) ~ logtest$year)
-logfit <- lm(log(ratio_bio_aa/100) ~ year, data=logtest)
-abline(logfit)
-
-stats_p$altitude
-stats_p$year
-stats_p$ratio_bio_aa
-
-library(rgl)
-plot3d(stats_p$altitude,
-       stats_p$year,
-       stats_p$ratio_bio_aa,
-       col=stats_p$mask)
-
-### Check elevation gradients:
-ele_test <- fread("Simulations/dis_patch_alt_6_m4/Output/elevation_biomass_out.csv")
-plot_elevation_gradient(ele_test, species=c("abiealba, piceabie, fagusilv"))
+## Plot 

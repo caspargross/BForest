@@ -110,10 +110,10 @@ rev_ycoords <-function(out, aui_rev=aui, res_rev=c(25,25))
 
 rev_ycoordsDT <-function(out, aui_rev=aui, res_rev=c(25,25)) 
 { require(data.table)
-  yc <- seq (from=aui_rev@ymin, to=aui_rev@ymax, by=res_rev[2])
+  yc <- seq (from=aui_rev@ymin, to=aui_rev@ymax-res_rev[2], by=res_rev[2])
   out$ycoord <- 0
   out$ycoord <- as.integer(out$ycoord)
-  for (i in 1:length(unique(out$row)))  {out[row==i, ycoord:=yc[i]]}
+  for (i in 1:length(unique(out$row)))  {out[row==(i-1), ycoord:=yc[i]]}
   out[order(-rank(ycoord), xcoord)]
 }
 
@@ -133,10 +133,10 @@ out2raster <- function (dat, var="elevation")
 
 ## For data.table class
 out2rasterDT <- function (dat, var="species"){ 
-  ex <- extent(min(dat$xcoord), max(dat$xcoord), min(dat$ycoord), max(dat$ycoord)) 
+  ex <- extent(min(dat$xcoord), max(dat$xcoord)+25, min(dat$ycoord), max(dat$ycoord)+25) 
   r <- raster (ex=ex, res=c(25,25), crs="+init=epsg:31467")
   if (var=="species" | var=="dom_species") {   ## This function creates a factorized raster for species information. Plot with levelplot (rasterVis)
-    r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=as.numeric(as.factor(dat[[var]])))
+    r<- rasterize(cbind(dat$xcoord, dat$ycoord+25), r, field=as.numeric(as.factor(dat[[var]])))
     r <- ratify(r) 
     rat <- levels(r)[[1]]
     rat$legend <- levels(as.factor(dat$species))

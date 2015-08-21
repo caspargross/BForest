@@ -21,7 +21,7 @@ projection(dem_bg) <- gk_projection
 dem_bg
 
 hmax <- 2000
-hmin <- 500
+hmin <- 400
 gradient <- (hmax-hmin)/(nr*res)
 
 dem_bg[,seq(nc)] <- rev(hmin+(seq(nr)*gradient*res))
@@ -78,9 +78,10 @@ sumbio_rm[,bio_rm:=runmean(bio_sp,5), by=.(species,browsing)]
 ##############
 
 # Colour Palettes:
-cas_palette <- c("#E55934","#9BC53D", "#5BC0EB", "#FDE74C",   "#FA7921", "#0072B2", "#D55E00", "#CC79A7")
-cas_palette2 <- 
-
+cas_palette <- c("#E55934","#9BC53D", "#5BC0EB", "#FDE74C")
+cas_palette2 <- c("#669900", "#0072B2", "#D55E00", "#FA7921"   )
+# Breaks
+br <- seq(400, 2000, 200)
 ## Plot the Biomass Elevation Gradient (Stacked Areas)
 bg_ele_stack<- ggplot(sumbio_rm, aes(group=species, fill=species))+
   theme_cas() +
@@ -144,7 +145,7 @@ setkey(rf_bg_f, elevation)
 # Dirty Hack to get count of reduction factors
 stemtable <- rf_bg_f[, .(stemsum=sum(stems)), by=.(elevation, lim_rf, species)]
 names(stemtable)[names(stemtable)[]=="lim_rf"] <- "rf_type"
-rf_bg_f <- rf_bg_f[,.(count=summary(lim_rf), rf_type=rep(c("Light", "Moisture", "Temperature"))), by=.(elevation, species)]
+rf_bg_f <- rf_bg_f[,.(count=summary(lim_rf), rf_type=rep(c("Light", "Moisture", "degreeDays"))), by=.(elevation, species)]
 # Merge tables
 rf_bg_f <- merge(stemtable, rf_bg_f, by=c("species", "elevation", "rf_type" ), all.y=T)
 rf_bg_f[is.na(stemsum), stemsum:=0, ]
@@ -164,7 +165,7 @@ rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation)) +
   theme_cas() +
   scale_colour_manual(values=cas_palette2) +
   scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br)  +
-  labs(y = "Occurence as limiting growth factor", colour="Species", shape="Species") +
+  labs(y = "Occurence as limiting growth factor", colour="Factor", shape="Factor") +
   scale_shape_manual(values=c(21,22,23,24)) +
   geom_point(aes(y=count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species))) + 
   geom_line(aes(y=rm_count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species)), size=0.8) +
