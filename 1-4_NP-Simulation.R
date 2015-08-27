@@ -22,7 +22,10 @@ crs(np_dem)
 np_dem <- mask(dem_bawue, np_shp)
 np_dem <- crop(np_dem, np_shp)
 np_dem <- resample(np_dem, raster(res=c(25,25), ex=extent(np_dem), crs=crs(np_dem)))
-
+# Conver in Spatial Pixels Dataframe for plotting in ggplot2
+df.np_dem <- as(np_dem, "SpatialPixelsDataFrame")
+df.np_dem<- as.data.frame(df.np_dem)
+head(df.np_dem)
 
 #Create hillshade
 np_sl = terrain(np_dem, opt='slope')
@@ -73,8 +76,6 @@ np_mono_pa[,bio_cohort:=biomass*stems, by=.(cell)]
 levelplot(out2rasterDT(np_mono_pa, var="bio_cohort"))
 
 
-
-
 #np_full_test <- rev_ycoordsDT(np_full_test, extent(np_map25[[2]]))
 levelplot(out2rasterDT(np_full_test))
 
@@ -91,7 +92,6 @@ plot(np_mixed, add=T, col="lightgreen")
 plot(hill, col=grey(0:100/100), alpha=0.35, add=T, legend=F)
 
 ### Create masks for different forest types
-
 r1 <- np_dem
 r1[!is.na(r1[])] <- 1
 m_grinden <- mask(r1, np_grinden)
@@ -117,7 +117,7 @@ levels(np_m_aui) <- data.frame(ID = 1:3, type=c("Picea abie mono", "young mixed"
 levelplot(np_m_aui, par.settings=PuOrTheme)
 
 ## Apply masks to create initial files
-#load input files
+## load input files
 in_mono <- fread ("Simulations/np_mono_pa/Output/fullOut_50.csv")
 in_new <- fread ("Simulations/np_full_new/Output/fullOut_2.csv")
 in_mixed <- fread ("Simulations/np_full_old/Output/fullOut_50.csv")
@@ -127,6 +127,9 @@ np_input1 <- mask_apply(temp1, in_new, m_full_new)
 write.table(np_input1, file="Data/Init_State/np_input1.csv", row.names=F, col.names=T, sep=",", quote=F)
 levelplot(out2rasterDT(np_input1))
 
+
+# B R O W S I N G = 0.%
+#====================================================================================================================
 ### Create Simulation with input file. 
 create_inputdir ("np_disp_1",
                  climpath="Data/DWD/climate_feldberg.dat",
@@ -138,75 +141,75 @@ create_inputdir ("np_disp_1",
                  )
 run_landclim_model("np_disp_1", ctl_file="ctl_bforest_np.xml")
 
-# Analysis:
+# INPUT Analysis
+inp_np <- fread("Data/Init_State/np_input1.csv")
+inp_np <- rev_ycoordsDT(inp_np, aui=extent(np_dem))
+inp_np <- flipy(inp_np)
+inp_np[, bio_cohort:=biomass*stems, ]
+inp_np <- inp_np[,.(cell, xcoord, ycoord, elevation, species, age, biomass, bio_cohort)]
+inp_np <- inp_np[, .( max_age=max(age), min_age=min(age), sum_bio=sum(bio_cohort) ), by=.(cell, xcoord, ycoord, elevation, species)]
+inp_np[, cell_bio:=sum(sum_bio), by=cell]  # Total Biomass of Cells
+inp_np[, bio_ratio:=sum_bio/cell_bio, ]
+inp_np[species == "abiealba", th_aa:=(ifelse (bio_ratio>0.3, TRUE, FALSE)),  ]
+inp_np[, year:=0 ,]
+
+#  RESULT Analysis:
 res_np1 <- as.list(paste("Simulations/np_disp_1/Output/fullOut_", 1:50,".csv", sep=""))
 res_np1 <- lapply(res_np1, fread)
-res_np2 <- res_np1
+res_np1 <- lapply(res_np1, function(x) setkey(x, col, row))
+res_np1 <- lapply(res_np1, rev_ycoordsDT, aui=extent(np_dem))
+res_np1 <- lapply(res_np1, flipy) #### SLOOOW (no data.table operation)
 
-levelplot(out2rasterDT(res_np1[[6]]))
 
 for (i in seq_along(res_np1)) {
-  DT <- res_np2[[i]]
+  DT <- res_np1[[i]]
   DT[, bio_cohort:=biomass*stems, ]
   DT <- DT[,.(cell, xcoord, ycoord, elevation, species, age, biomass, bio_cohort)]
   DT <- DT[, .( max_age=max(age), min_age=min(age), sum_bio=sum(bio_cohort) ), by=.(cell, xcoord, ycoord, elevation, species)]
   DT[, cell_bio:=sum(sum_bio), by=cell]  # Total Biomass of Cells
   DT[, bio_ratio:=sum_bio/cell_bio, ]
   DT[species == "abiealba", th_aa:=(ifelse (bio_ratio>0.3, TRUE, FALSE)),  ]
+  DT[,year:= i*10,]
   res_np1[[i]] <- DT
 }
 
 
-aa_th <- DT[species == "abiealba", .(xcoord, ycoord, th_aa=any(th_aa)), by=cell]
-setkey(aa_th, xcoord, ycoord)
+######################
+#  PLOT THE RESULTS  #
+######################
+#Combine all files for plot in single data.table
+npyr <- c(3, 5, 10, 15, 20) # decades to plot
+DT_NP_plot <- data.table(cell=integer(), xcoord=integer(), ycoord=integer(), elevation=integer(), species=character(), max_age=integer(), min_age=integer(), sum_bio=numeric(), cell_bio=numeric(), bio_ratio=numeric(), th_aa=logical(), year=integer())
+DT_NP_plot <- rbind(DT_NP_plot, inp_np)
+for (i in npyr) {DT_NP_plot <- rbind(DT_NP_plot, res_np1[[i]])}
 
-x <- unique(aa_th$xcoord)
-y <- unique(aa_th$ycoord)
-image(unique(aa_th$xcoord), unique(aa_th$ycoord), 1)
+# plot
+np_plot <- ggplot(DT_NP_plot, aes(x=xcoord, y=ycoord)) +
+  theme_cas() +
+  theme(legend.position = "bottom")+
+  theme(axis.text.y = element_text(angle = 90, hjust=0.5)) +  #Flip ycoordinates
+  coord_fixed() +
+  geom_tile(aes(fill=species),  data= DT_NP_plot[species == "fagusilv"], fill="grey80")+
+  geom_tile(aes(fill=species),  data= DT_NP_plot[species == "piceabie"], fill="wheat1")+
+  #geom_tile(aes(fill=bio_ratio), data=DT_NP_plot[species=="abiealba" & bio_ratio > 0.1]) +
+  geom_tile(aes(fill=bio_ratio), data=DT_NP_plot[species=="abiealba"]) +
+  scale_fill_gradient(low="lightgreen", high="darkgreen", limits=c(0, 1), na.value="transparent")+
+  stat_contour(data=df.np_dem, aes(x=x, y=y, z=dem_bawue_gk), col="grey20", size = 0.1) +
+  labs( y="Longitude", x="Latitude", fill="Biomass ratio \n A.alba / Total") +
+  facet_wrap(~year, ncol=2)
+ 
 
-plot(x,y)
+np_plot
 
-np_mono_pa <- fread("Simulations/np_mono_pa/Output/fullOut_50.csv")
-np_mono_pa[,bio_cohort:=biomass*stems, by=.(cell)]
-levelplot(out2rasterDT(np_mono_pa, var="bio_cohort"))
+res_np1[[]][]
+#Convert List with Results into raster format.
+raster_np1 <- lapply(res_np1, function(x) out2rasterDT(x, var="bio_ratio"))
+raster_np2 <- lapply(raster_np1, function(x) focal(x, w=matrix(1,3,3), fun=sum))
 
-
-ggraster <- ggplot (DT[species == "abiealba",,], aes(x=xcoord, y=ycoord)) +
-    coord_fixed(ratio=1) +
-    theme_cas()+
-    geom_tile(aes(fill=(bio_ratio)))
-ggraster
-
-
-for (i in 1:50) {
-ggraster <- ggplot (res_np1[[i]], aes(x=xcoord, y=ycoord)) +
-  coord_fixed(ratio=1) +
-  theme_cas()+
-  geom_point(aes(col=species, size=bio_ratio), alpha=0.1)
-  
-print(paste("No", i))
-png(file=paste("Animate/np_1_dec", i,".png", sep=""), width=500 , height=400)
-print(ggraster)
-dev.off()
-}
-
-
-DT <- res_np1[[30]]
-
+levelplot(raster_np1[[3]])
+levelplot(raster_np2[[3]])
 
 
-
-
-
-
-
-ra <- out2rasterDT(np_full_test)
-levelplot(ra)
-extent(ra)
-
+#### Links for the aerial photographs
 http://sg.geodatenzentrum.de/wms_dop40?FORMAT=image%2Fjpeg&TRANSPARENT=FALSE&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=&LAYERS=0&SRS=EPSG%3A25832&BBOX=441500.00000000,5382400.00000000,452500.00000000,5392400.00000000&WIDTH=1000&HEIGHT=1000
-
 http://sg.geodatenzentrum.de/wms_dop40?FORMAT=image%2Fjpeg&TRANSPARENT=FALSE&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=&LAYERS=0&SRS=EPSG%3A25832&BBOX=443063.87159437,5386418.9716511,445509.8564995,5388864.9565562&WIDTH=256&HEIGHT=256
-plot(np_shp)
-
-download.file("http://sg.geodatenzentrum.de/wms_dop40?FORMAT=image%2Fjpeg&TRANSPARENT=FALSE&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&STYLES=&LAYERS=0&SRS=EPSG%3A25832&BBOX=443063.87159437,5386418.9716511,445509.8564995,5388864.9565562&WIDTH=256&HEIGHT=256", "Data/np/np_bg.jpg")

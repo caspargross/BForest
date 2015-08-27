@@ -5,7 +5,7 @@
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
 
-theme_cas <- function (base_size = 12, base_family = "") {
+theme_cas_big <- function (base_size = 12, base_family = "") {
   theme_grey(base_size = base_size, base_family = base_family) %+replace% 
   theme(axis.text = element_text(size = rel(0.8)), axis.ticks = element_line(colour = "black"), 
         legend.key = element_rect(colour = "grey80"),
@@ -13,8 +13,24 @@ theme_cas <- function (base_size = 12, base_family = "") {
         panel.border = element_rect(fill = NA, colour = "grey50"),
         panel.grid.major = element_line(colour = "grey90", size = 0.2),
         panel.grid.minor = element_line(colour = "grey98"),
-        strip.background = element_rect(colour = "grey50", size = 0.5))
+        strip.background = element_rect(colour = "grey50", size = 0.5),
+        axis.title = element_text(colour="black", size="17"),
+        strip.text = element_text(colour="black", size="15"),
+        axis.text = element_text(colour="black", size="15"),
+        legend.title = element_text(size=16),legend.text=element_text(size=16))
 }
+
+theme_cas <- function (base_size = 12, base_family = "") {
+  theme_grey(base_size = base_size, base_family = base_family) %+replace% 
+    theme(axis.text = element_text(size = rel(0.8)), axis.ticks = element_line(colour = "black"), 
+          legend.key = element_rect(colour = "grey80"),
+          panel.background = element_rect(fill = "white", colour = NA),
+          panel.border = element_rect(fill = NA, colour = "grey50"),
+          panel.grid.major = element_line(colour = "grey90", size = 0.2),
+          panel.grid.minor = element_line(colour = "grey98"),
+          strip.background = element_rect(colour = "grey50", size = 0.5))
+}
+
 
 run_landclim_model<-function(sim_name, ctl_file="ctl_bforest.xml", lcpath="/Data/Landclim/LandClim"){
   oldwd <- getwd()
@@ -129,6 +145,14 @@ out2raster <- function (dat, var="elevation")
       levels(r) <- rat
       } else {r<- rasterize(cbind(dat$xcoord, dat$ycoord), r, field=dat[[var]])}
   r
+}
+
+
+## Flip landscape: (NOT OPTIMIZED DATA.FRAME Function --> Adapt for data.table?)
+flipy <- function(DF) {
+  oldy <- unique(DF$ycoord)
+  for (i in 1:length(oldy)) {DF[DF$row==i-1]$ycoord <- oldy[i] }
+  DF
 }
 
 ## For data.table class

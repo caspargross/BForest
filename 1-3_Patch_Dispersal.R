@@ -56,10 +56,8 @@ mclapply(as.list(paste("dis_patch_init_aa_", seq_along(maps_list_p), sep="")), f
 input_files <- as.list(paste("Simulations/dis_patch_init_fs-pa_", seq_along(maps_list_p),"/Output/fullOut_50.csv", sep=""))
 input_files <- lapply(input_files, fread)
 input_files <- lapply(input_files, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
-levelplot(out2rasterDT(input_files[[3]], var="species"))
 
-
-
+##
 #### Create Inputfiles
 mask <- raster(extent(maps_list_p[[1]]), resolution=res(maps_list_p[[1]]))
 
@@ -213,7 +211,8 @@ th_time
 ### Plot the biomass ratios
 library(ggplot2)
 distplot <- ggplot(stats_p, aes(x=year, group=mask, col = as.factor(mask))) +
-  theme_cas() +
+  theme_cas_big() +
+  theme(legend.position = "bottom") +
   geom_hline(aes(yintercept=th), col="grey20", lty=2, show_guide = TRUE)+
   geom_line(aes(y=ratio_bio_aa)) +
   geom_rug(mapping=aes(x=th_year, group=mask), data=th_time, sides="t", size=1)+
@@ -231,7 +230,16 @@ hm <- ggplot (th_time, aes(x=as.factor(mask), y=as.factor(elevation))) +
   coord_fixed()+
   theme_cas()+
   scale_fill_gradientn(colours=cas_palette(10), breaks=round(brks$brks)) +
-  labs( y="Initial configuration mask", x="Elevation in m a.s.l.", fill="Threshold \n year")
+  #scale_fill_gradientn(colours=cas_palette(10), guide = "colourbar") +
+  labs( x="Initial configuration mask", y="Elevation (m a.s.l.)", fill="Threshold \n year")
 hm
 
+pdf(file="Figures/dis_patch.pdf", width=10, height=14)
+print(distplot)
+dev.off()
+
+
+pdf(file="Figures/heatmap.pdf")
+print(hm)
+dev.off()
 ## Plot 

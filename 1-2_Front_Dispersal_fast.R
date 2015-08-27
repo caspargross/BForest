@@ -153,7 +153,6 @@ for (i in 1:length(frnew_res)) {
 stats_frnew <- stats_frnew[-1]
 stats_frnew$elevation <- as.factor(stats_frnew$elevation) 
 stats_frnew[,rm_yfront:=runmean(yfront, 5), by=elevation]
-stats_frnew[,0]
 
 ### NICE PRINTS
 ele <- c(1,2,3,4,5,6,7)
@@ -186,13 +185,14 @@ pl[, ele_factor:=factor(pl$ele, levels=c(7,6,5,4,3,2,1), labels=c("1600", "1400"
 ### Plot 1: Images
 frnew <- ggplot(pl, aes(x=ycoord, y=xcoord)) +
   theme_cas() +
+  theme(legend.position = "bottom") +
   coord_fixed() +
   geom_tile(aes(fill=species),  data= pl[species == "fagusilv"], fill="grey80")+
   geom_tile(aes(fill=species),  data= pl[species == "piceabie"], fill="wheat1")+
   geom_tile(aes(fill=ratio_aa)) +
   scale_fill_gradient(low="lightgreen", high="darkgreen", limits=c(0, 1), na.value="transparent")+
   facet_grid(ele_factor ~ dec) +
-  labs(x= "Length [m]", y= "Width [m]") +
+  labs(x= "Length (m)", y= "Width (m)", fill="Biomass ratio \n A. alba / total") +
   geom_vline(aes(xintercept=yfront), data=stats_frnew[year==dec  & elevation==dec])+
   scale_y_continuous(breaks=seq(0, 400, 200))  
 
@@ -213,17 +213,27 @@ for (i in 1:7) {
 models$elevation <- as.factor(models$elevation)
 
 ### Plot 2: Distances
-frnew_dist <- ggplot(stats_frnew[yfront < 1700], aes(x=year, y=rm_yfront, col=elevation, group=elevation)) +
-  geom_line(lty=1) +
-  theme_cas() +
+frnew_dist <- ggplot(stats_frnew[yfront < 1700], aes(x=year, y=yfront, col=elevation, group=elevation)) +
+  #geom_line()+
+  geom_point(pch=3) +
+  theme_cas_big() +
   geom_abline(aes(slope=coef, col=elevation), data=models)+
-  labs(x ="Year", y="Distance covered by A. alba front [m]") +
-  geom_abline(intercept=0, slope=1.6, lty=2)+
-  geom_abline(intercept=0, slope=0.5, lty=3)
-  #scale_colour_brewer(palette="YlGnBu")
+  labs(x ="Time (yr)", y="Distance covered by A. alba front (m)", col="Elevation \n (m a.s.l.)") 
+  #geom_abline(intercept=0, slope=1.6, lty=2)+
+  #geom_abline(intercept=0, slope=0.5, lty=3) 
+    #scale_colour_brewer(palette="YlGnBu")
  #(values= terrain.colors(10, alpha = 1))
-
 frnew_dist
+
+### Export figures as .pdf
+
+pdf(file="Figures/dis_front_lm.pdf", width=8, height=6)
+print(frnew_dist)
+dev.off()
+
+pdf(file="Figures/dis_front_map.pdf", width=10, height=10)
+print(frnew)
+dev.off()
 
 ### Export table to latex
 
