@@ -80,7 +80,7 @@ m11 <-(create_mask_p(20,20,1,1, mask, p=TRUE)) # 400x1
 
 
 sink("Logs/log_dis_patch.txt")
-for (k in 1:11) {
+for (k in 3) {
 print(paste("Patch pattern no", k, "startedt at:", Sys.time()))
   
 initlist1_p <- as.list( paste("Simulations/dis_patch_init_fs-pa_", seq_along(maps_list_p), "/Output/fullOut_50.csv", sep=""))
@@ -229,17 +229,58 @@ hm <- ggplot (th_time, aes(x=as.factor(mask), y=as.factor(elevation))) +
   geom_tile(aes(fill=th_year), colour="grey80") +
   coord_fixed()+
   theme_cas()+
-  scale_fill_gradientn(colours=cas_palette(10), breaks=round(brks$brks)) +
-  #scale_fill_gradientn(colours=cas_palette(10), guide = "colourbar") +
+  #scale_fill_gradientn(colours=cas_palette(10), breaks=round(brks$brks)) +
+  scale_fill_gradientn(colours=cas_palette(10), guide = "colourbar") +
   labs( x="Initial configuration mask", y="Elevation (m a.s.l.)", fill="Threshold \n year")
 hm
 
-pdf(file="Figures/dis_patch.pdf", width=10, height=14)
-print(distplot)
-dev.off()
+## PLot Dispersal Maps + GIF
+dec_p <- c(5, 50, 100, 200)
+levels(dec_p) <- c("50 yr", "200 yr", "500 yr", "1500 yr")
+ele_p <- c(1, 2, 4, 6, 7)
+levels(ele_p) <- c("600", "1000",  "1400" )
+gr_p <- expand.grid(dec_p, ele_p)
 
+dis_p_files <- as.list(paste("Simulations/dis_patch_alt_", gr_p[,2], "_m3/Output/fullOut_", gr_p[,1], ".csv" ,sep=""))
+dis_p_files <- lapply(dis_p_files, fread)
+dis_p_files <- lapply(dis_p_files, function(x) rev_ycoordsDT(x, extent(maps_list_p[[1]])))
+pl_p <- data.table(cell=NA, xcoord=NA, ycoord=NA, species=NA, bio_tot=NA, ratio_aa=NA, sumbio_tot=NA, ele=NA, dec=NA)
+for (i in 1:length(dis_p_files)) {
+  DT <- dis_p_files[[i]]
+  print(paste("Load Step", i))
+  DT[,bio_cohort:=biomass*stems,]
+  DT <- DT[,.( bio_tot=sum(bio_cohort)), by=.(species, cell, xcoord, ycoord, elevation)]
+  DT[,bio_aa:=as.double(NA),]  # Create new column with abies alba biomass
+  DT[species == "abiealba", bio_aa:=bio_tot, by=.(cell)]
+  DT[, sumbio_tot := sum(bio_tot), by=cell]
+  DT[, ratio_aa := na.omit(bio_aa) / sumbio_tot, by=cell ] #Calculate aa/total biomass ratio
+  DT <- DT[, .SD[which.max(bio_tot), .(xcoord, ycoord, species, bio_tot, ratio_aa, sumbio_tot)], by=.(cell)]
+  DT[,ele:=gr_p[i,1],]
+  DT[,dec:=gr_p[i,2],]
+  pl_p <- rbind(pl_p, DT)
+  print(paste("Finish Step", i))
+}  
 
-pdf(file="Figures/heatmap.pdf")
+pl_p <- pl_p[-1]
+
+pnew <- ggplot(pl_p, aes(x=ycoord, y=xcoord)) +
+  theme_cas_big() +
+  theme(legend.position = "bottom") +
+  coord_fixed() +
+  geom_tile(aes(fill=species),  data= pl_p[species == "fagusilv"], fill="grey80")+
+  geom_tile(aes(fill=species),  data= pl_p[species == "piceabie"], fill="wheat1")+
+  geom_tile(aes(fill=ratio_aa)) +
+  scale_fill_gradient(low="lightgreen", high="darkgreen", limits=c(0, 1), na.value="transparent")+
+  facet_grid(dec ~ ele) +
+  labs(x= "Length (m)", y= "Width (m)", fill="Biomass ratio \n A. alba / total") +
+  scale_x_continuous(breaks=seq(0, 4000, 2000)) +
+  scale_y_continuous(breaks=seq(0, 4000, 2000)) 
+
+#### PLOT RESULTS
+pdf(file="Figures/dis_patch_hm.pdf", width=8, height=6)
 print(hm)
 dev.off()
-## Plot 
+
+pdf(file="Figures/dis_patch_map.pdf", width=10, height=14)
+print(pnew)
+dev.off()

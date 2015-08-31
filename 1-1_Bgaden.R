@@ -198,3 +198,7 @@ pdf(file ="Figures/rf_plot_lim.pdf", width=10, height=8)
 print(rf_plot_lim)
 dev.off()
 
+#############################
+# Plot aerial photo of the elevation gradient
+############################
+
