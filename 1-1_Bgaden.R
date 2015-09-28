@@ -140,32 +140,40 @@ for (i in 1:length(res_bg)) {
 }
 
 
-rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species, stems),] #convert limits to factor
+rf_bg_f <- rf_bg[, .(lim_rf=factor(lim_rf, levels= c(1,2,3), labels = c("Light", "Moisture", "Temperature")), elevation, species, stems, biomass, age=as.double(age)),] #convert limits to factor
 setkey(rf_bg_f, elevation)
-# Dirty Hack to get count of reduction factors
 stemtable <- rf_bg_f[, .(stemsum=sum(stems)), by=.(elevation, lim_rf, species)]
 names(stemtable)[names(stemtable)[]=="lim_rf"] <- "rf_type"
-rf_bg_f <- rf_bg_f[,.(count=summary(lim_rf), rf_type=rep(c("Light", "Moisture", "degreeDays"))), by=.(elevation, species)]
+rf_bg_f <- rf_bg_f[,.(count=summary(lim_rf), med_age=median(age), rf_type=rep(c("Light", "Moisture", "degreeDays"))), by=.(elevation, species)]
 # Merge tables
 rf_bg_f <- merge(stemtable, rf_bg_f, by=c("species", "elevation", "rf_type" ), all.y=T)
 rf_bg_f[is.na(stemsum), stemsum:=0, ]
 rf_bg_f[, stemcount:=count*stemsum]
+
+
+blub <- rf_bg[, .(mlight=median(rf_light), mmoisture=median(rf_moisture), mdegreedays=median(rf_degreeDay)), .(elevation, species)]
+rf_bg_f<- merge(rf_bg_f, blub, by=c("elevation", "species"))
+
 #Normalize
-rf_bg_f[, count01:=count/(sum(count)), by=.(elevation, species)]
+rf_bg_f[, count01:=count/(sum(count))*100, by=.(elevation, species)]
 rf_bg_f[, stemcount01:=stemcount/(sum(stemcount)), by=.(elevation, species)]
 #Calculate Running Mean
 rf_bg_f[,rm_count01:=runmean(count01, 10), by=.(rf_type, species)]  
 rf_bg_f[,rm_stemcount01:=runmean(stemcount01, 10), by=.(rf_type, species)]  
 rf_bg_f[,sum_stemsum:=sum(stemsum), by=.(elevation, species)]
 rf_bg_f[,sum_stemsum01:=range01(stemsum), by=.(species)]
+## Insert NAs instead of 0 red.factor
+rf_bg_f[mlight == 0, mlight:=NA]
+rf_bg_f[mdegreedays == 0, mdegreedays:=NA]
+rf_bg_f[mmoisture == 0, mmoisture:=NA]
 #### Plot the limiting reduction factor
 
 
 rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation)) +
-  theme_cas() +
+  theme_cas_big() +
   scale_colour_manual(values=cas_palette2) +
   scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br)  +
-  labs(y = "Occurence as limiting growth factor", colour="Factor", shape="Factor") +
+  labs(y = "Occurence as limiting growth factor (%)", colour="Factor", shape="Factor") +
   scale_shape_manual(values=c(21,22,23,24)) +
   geom_point(aes(y=count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species))) + 
   geom_line(aes(y=rm_count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species)), size=0.8) +
@@ -173,6 +181,38 @@ rf_plot_lim <- ggplot(rf_bg_f, aes(x=elevation)) +
 
 rf_plot_lim
 
+
+rf_plot_limvalues <- ggplot(rf_bg_f, aes(x=elevation)) +
+  theme_cas_big() +
+  scale_colour_manual(values=cas_palette2) +
+  scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br)  +
+  labs(y = "Occurence as limiting growth factor (%)", colour="Factor", shape="Factor") +
+  scale_shape_manual(values=c(21,22,23,24)) +
+  #geom_point(aes(y=count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species))) + 
+  #geom_line(aes(y=rm_count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species)), size=0.8) +
+  geom_line(aes(y=mlight), col=cas_palette2[1] )+
+  geom_line(aes(y=mdegreedays), col=cas_palette2[3]) +
+  geom_line(aes(y=mmoisture), col=cas_palette2[2]) +
+  facet_wrap(~species, ncol=1)
+
+rf_plot_limvalues
+
+
+rf_plot_limvalues <- ggplot(rf_bg_f, aes(x=elevation)) +
+  theme_cas_big() +
+  scale_colour_manual(values=cas_palette2) +
+  scale_x_continuous("Elevation in m a.s.l", breaks=br, labels=br)  +
+  labs(y = "Occurence as limiting growth factor (%)", colour="Factor", shape="Factor") +
+  scale_shape_manual(values=c(21,22,23,24)) +
+  #geom_point(aes(y=count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species))) + 
+  #geom_line(aes(y=rm_count01,  colour=rf_type, shape=rf_type, group=interaction(rf_type, species)), size=0.8) +
+  geom_line(aes(y=med_age), col=cas_palette2[4] )+
+  facet_wrap(~species, ncol=1)
+
+rf_plot_limvalues
+
+#### Calculate analytics values
+rf_bg[, .(total_sum=sum(stems), med_age=as.integer(median(age)), med_biomass=median(biomass)), by=.(species)] 
 
 
 
@@ -201,4 +241,8 @@ dev.off()
 #############################
 # Plot aerial photo of the elevation gradient
 ############################
+
+### PLot logistic growth functtion
+curve((0.08*x)(1-))
+
 

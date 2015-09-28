@@ -143,10 +143,10 @@ create_inputdir ("np_disp_1",
                  species=c("piceabie", "abiealba", "fagusilv"), ex=F,
                  LandClimRasterStack=np_map25,
                  inputfile="Data/Init_State/np_input1.csv",
-                 ctlfile="Data/Landclim/ctl_bforest_np.xml",
+                 ctlfile="Data/Landclim/ctl_bforest_dispersal.xml",
                  landtypefile="Data/Landclim/landtype.xml",
                  )
-run_landclim_model("np_disp_1", ctl_file="ctl_bforest_np.xml")
+run_landclim_model("np_disp_1", ctl_file="ctl_bforest_dispersal.xml")
 
 # LOAD INPUT (Initital State) Analysis
 inp_np <- fread("Data/Init_State/np_input1.csv")
@@ -210,7 +210,7 @@ for (i in seq_along(res_np1)) {
   }
 
 #====================================================================================================================
-#  |  B R O W S I N G = 0.5 %   |    
+#  |  B R O W S I N G = 0.4 %   |    
 # \ /                          \ /  
 #  V                            V
 #====================================================================================================================
@@ -221,10 +221,10 @@ create_inputdir ("np_disp_2",
                  species=c("piceabie", "abiealba", "fagusilv"), ex=F,
                  LandClimRasterStack=np_map25,
                  inputfile="Data/Init_State/np_input1.csv",
-                 ctlfile="Data/Landclim/ctl_bforest_np.xml",
+                 ctlfile="Data/Landclim/ctl_bforest_dispersal.xml",
                  landtypefile="Data/Landclim/landtype.xml",
 )
-run_landclim_model("np_disp_2", ctl_file="ctl_bforest_np.xml")
+run_landclim_model("np_disp_2", ctl_file="ctl_bforest_dispersal.xml")
 
 # LOAD INPUT (Initital State) Analysis
 inp_np2 <- fread("Data/Init_State/np_input1.csv")
@@ -233,7 +233,7 @@ inp_np2 <- flipy(inp_np2)
 
 
 #  LOAD Result 
-res_np2 <- as.list(paste("Simulations/np_disp_2/Output/fullOut_", 1:50,".csv", sep=""))
+res_np2 <- as.list(paste("Simulations/np_disp_2/Output/fullOut_", 1:100,".csv", sep=""))
 res_np2 <- lapply(res_np2, fread)
 res_np2 <- lapply(res_np2, function(x) setkey(x, col, row))
 res_np2 <- lapply(res_np2, rev_ycoordsDT, aui=extent(np_dem))
@@ -346,11 +346,34 @@ dev.off()
 res_np1[[]][]
 #Convert List with Results into raster format.
 raster_np1 <- lapply(res_np1, function(x) out2rasterDT(x, var="bio_ratio"))
-raster_np2 <- lapply(raster_np1, function(x) focal(x, w=matrix(1,3,3), fun=sum))
+raster_np2 <- lapply(raster_np1, function(x) focal(x, w=matrix(1,5,5), fun=median))
 
-levelplot(raster_np1[[3]])
+levelplot(raster_np1[[50]])
 levelplot(raster_np2[[3]])
 
+DTT <- res_np1[[50]]
+DTT[, bio_cohort:=biomass*stems, ]
+DTT<- DTT[,.(cell, xcoord, ycoord, elevation, species, age, biomass, bio_cohort)]
+DTT <- DTT[, .( max_age=max(age), min_age=min(age), sum_bio=sum(bio_cohort) ), by=.(cell, xcoord, ycoord, elevation, species)]
+DTT[, cell_bio:=sum(sum_bio), by=cell]  # Total Biomass of Cells
+DTT[, bio_ratio:=sum_bio/cell_bio, ]
+raster_np1 <- (out2rasterDT(DTT[species=="abiealba"], var="cell_bio"))
+raster_np1[is.na(raster_np1[])] <- 0
+raster_np1 <- mask(raster_np1, r1)
+levelplot(raster_np1)
+## Creat Focal Weights Matrix
+foma <- raster (ncols=7, nrows=7, xmn=0)
+foma <- focalWeight(foma, 21, "Gauss")
+raster_np2 <-  focal(raster_np1,  w=foma, fun=median, na.rm=T)
+raster_np2 <- mask(raster_np2, r1)
+levelplot(raster_np2)
+
+
+
+##Compare res1 and res2
+res_np1[[50]][species=="abiealba", sum(biomass*stems)]
+res_np2[[50]][species=="abiealba", sum(biomass*stems)]
+(res_np1[[20]])[spevies="abiea",biomass,]
 
 
 ## PLot aerial photographs

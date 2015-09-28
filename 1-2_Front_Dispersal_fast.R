@@ -213,7 +213,7 @@ for (i in 1:7) {
 models$elevation <- as.factor(models$elevation)
 
 ### Plot 2: Distances
-frnew_dist <- ggplot(stats_frnew[yfront < 1700], aes(x=year, y=yfront, col=elevation, group=elevation)) +
+frnew_dist <- ggplot(stats_frnew[yfront < 1700 ], aes(x=year, y=yfront, col=elevation, group=elevation)) +
   #geom_line()+
   geom_point(pch=3) +
   theme_cas_big() +

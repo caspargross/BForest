@@ -206,7 +206,15 @@ th_time[,th_year:=round(low_year+x),]
 th_time[,mean_year:=mean(th_year), by=.(elevation)]
 th_time[,th_year01:=range01(th_year),]
 th_time[, ele_factor:=factor(th_time$elevation, levels=c("1600", "1400", "1200", "1000", "800", "600", "400")), ]
-th_time
+
+# Create output table for values
+out_th_time <- dcast(th_time, elevation ~ mask, value.var="th_year")
+out_th_time <- out_th_time[order(-elevation)]
+print(xtable(out_th_time, digits=0))
+#th_time[, median_th:=mean(th_year), by=ele_factor]
+#th_time[, diff_th:=max(th_year)-min(th_year), by=ele_factor]
+#matpoints(th_time$median_th, th_time$diff_th, type="p")
+
 
 ### Plot the biomass ratios
 library(ggplot2)
@@ -234,7 +242,7 @@ hm <- ggplot (th_time, aes(x=as.factor(mask), y=as.factor(elevation))) +
   labs( x="Initial configuration mask", y="Elevation (m a.s.l.)", fill="Threshold \n year")
 hm
 
-## PLot Dispersal Maps + GIF
+## PLot Dispersal Maps 
 dec_p <- c(5, 50, 100, 200)
 levels(dec_p) <- c("50 yr", "200 yr", "500 yr", "1500 yr")
 ele_p <- c(1, 2, 4, 6, 7)
@@ -282,5 +290,11 @@ print(hm)
 dev.off()
 
 pdf(file="Figures/dis_patch_map.pdf", width=10, height=14)
+print(pnew)
+dev.off()
+
+?ggsave
+ggsave(filename="Figures/dis_patch_map.png", pnew, dpi=300, width=10, height=14)
+png(file="Figures/dis_patch_map.pdf", width=10, height=14)
 print(pnew)
 dev.off()
